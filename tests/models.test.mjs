@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {registerHooks} from 'node:module';
+registerHooks({resolve(specifier,context,next){if(specifier==='three')specifier=new URL('../dist/vendor/three/three.module.js',import.meta.url).href;return next(specifier,context);}});
+const {GLTFLoader}=await import('../dist/vendor/three/addons/loaders/GLTFLoader.js');
+const {Box3}=await import('../dist/vendor/three/three.module.js');
+const {animateModel}=await import('../dist/src/models.js');
+const manifest=JSON.parse(await readFile(new URL('../dist/models/manifest.json',import.meta.url),'utf8'));
+for(const model of manifest)test(`${model.name} GLB loads, has valid geometry and animated parts`,async()=>{const bytes=await readFile(new URL('../dist/models/'+model.file,import.meta.url));assert.equal(bytes.readUInt32LE(0),0x46546c67);assert.equal(bytes.readUInt32LE(4),2);assert.equal(bytes.readUInt32LE(8),bytes.length);assert.equal(model.bytes,bytes.length);const gltf=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');const root=gltf.scene,bounds=new Box3().setFromObject(root);assert.ok(!bounds.isEmpty());assert.ok(Number.isFinite(bounds.max.x+bounds.max.y+bounds.max.z));let count=0;root.traverse(o=>{if(o.isMesh){count++;const p=o.geometry.attributes.position;assert.ok(p.count>0);for(const x of p.array)assert.ok(Number.isFinite(x));if(o.geometry.index)for(const x of o.geometry.index.array)assert.ok(x<p.count);}});assert.ok(count>10);animateModel(root,1,8);assert.ok(root.userData.motion.length>0);if(model.name==='buggy')assert.equal(root.userData.motion.filter(p=>p.o.name.startsWith('wheel')).length,4);if(model.name==='spider')assert.equal(root.userData.motion.filter(p=>p.o.name.startsWith('leg')).length,8);});

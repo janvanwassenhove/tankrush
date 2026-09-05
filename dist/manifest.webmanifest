@@ -1,0 +1,11 @@
+{
+  "id": "./", "name": "TankRush", "short_name": "TankRush",
+  "description": "Race door levende aquariums en terrariums.",
+  "lang": "nl", "start_url": "./", "scope": "./",
+  "display": "standalone", "orientation": "landscape",
+  "background_color": "#08262b", "theme_color": "#08262b",
+  "icons": [
+    {"src":"./icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"./icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}

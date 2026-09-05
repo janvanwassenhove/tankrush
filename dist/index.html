@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08262b">
+  <meta name="description" content="TankRush — race met een duikboot door een levend aquarium of scheur met een buggy door een terrarium.">
+  <title>TankRush — Tiny racers. Wild worlds.</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/png" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./style.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
+</head>
+<body>
+  <canvas id="game" aria-label="3D-racewereld"></canvas>
+  <div id="vignette" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="TankRush startscherm">TANK<span>RUSH</span><small>MICRO RACING CLUB</small></a>
+    <div class="top-actions"><span class="version">PROTOTYPE / 01</span><button id="sound" class="icon-button" aria-label="Geluid inschakelen" title="Geluid">♫</button><button id="install" class="quiet" hidden>Installeer</button><button id="pause" class="quiet" hidden>Pauze <kbd>Esc</kbd></button></div>
+  </header>
+  <main id="menu" class="menu">
+    <div class="eyebrow"><span class="dash"></span> KLEINE RACERS. WILDE WERELDEN.</div>
+    <h1>Welcome to<br>the <em>food chain.</em></h1>
+    <p class="intro">Jij racet hier.<br>De bewoners hebben andere plannen.</p>
+    <fieldset class="world-select"><legend>KIES JE HABITAT</legend>
+      <button type="button" data-world="aquarium" class="world selected" aria-pressed="true"><span class="world-no">01</span><span><strong>Diep Water</strong><small>Aquarium · duikboot · vrije 3D-route</small></span><span class="world-mark">↗</span></button>
+      <button type="button" data-world="terrarium" class="world" aria-pressed="false"><span class="world-no">02</span><span><strong>Wildgroei</strong><small>Terrarium · buggy · ruig terrein</small></span><span class="world-mark">↗</span></button>
+    </fieldset>
+    <div class="start-row"><button id="start" class="primary">START DE RACE <span>→</span></button><span>3 RONDES<br>4 RACERS</span></div>
+    <button id="help" class="text-button">Hoe overleef ik dit? <span>↗</span></button>
+  </main>
+  <aside id="habitat-label" class="habitat-label"><span>HABITAT 01 / AQUARIUM</span><strong>Diep Water</strong><small>Guppies · piranha’s · een slechte timing</small></aside>
+  <div id="hud" hidden>
+    <section class="race-status"><div><small>POSITIE</small><strong><span id="position">1</span><i>/ 4</i></strong></div><div><small>RONDE</small><strong id="lap">1 / 3</strong></div><div><small>TIJD</small><strong id="time">00:00.0</strong></div></section>
+    <div id="countdown" aria-live="polite"></div><div id="toast" role="status"></div>
+    <aside class="minimap-panel"><canvas id="minimap" width="220" height="170" aria-label="Parcourskaart"></canvas><span id="gate-label">CHECKPOINT 1 / 12</span></aside>
+    <div class="speedometer"><strong id="speed">0</strong><span>CM/S</span><div class="boost-track"><div id="boost-meter"></div></div><small>BOOST <kbd>Shift</kbd></small></div>
+    <div class="item-panel"><button id="food" aria-label="Voer achter je droppen"><span class="item-symbol">✳</span><span><strong>VOER DROP</strong><small id="food-count">3 porties · Spatie</small></span></button><small id="vehicle-hint">Q / E stijgen & duiken</small></div>
+    <div class="race-hint">WASD / PIJLTJES <span>STUREN</span><b>·</b> R <span>HERSTELLEN</span></div>
+  </div>
+  <div id="touch-controls" hidden><div class="touch-steer"><button data-control="left" aria-label="Links">◀</button><button data-control="forward" aria-label="Gas">▲</button><button data-control="right" aria-label="Rechts">▶</button><button data-control="back" aria-label="Remmen">▼</button></div><div class="touch-actions"><button data-control="rise" aria-label="Stijgen">↑</button><button data-control="dive" aria-label="Duiken">↓</button><button data-control="boost">BOOST</button><button id="touch-food">VOER</button></div></div>
+  <dialog id="info-dialog"><button class="close" data-close aria-label="Sluiten">×</button><span class="eyebrow">RACEBRIEFING</span><h2>Klein voertuig.<br>Grote problemen.</h2><p>Volg de lichtgevende poorten in volgorde. Drie rondes, vier racers. De felgroene poort is je volgende checkpoint.</p><dl class="controls-list"><dt>WASD / pijltjes</dt><dd>Gas, remmen en sturen</dd><dt>Q / E</dt><dd>Duikboot stijgen / duiken</dd><dt>Shift</dt><dd>Boost (laadt vanzelf op)</dd><dt>Spatie</dt><dd>Voer achter je droppen</dd><dt>R</dt><dd>Terug naar je laatste checkpoint</dd><dt>Esc</dt><dd>Pauzeren</dd></dl><p>Voer lokt dieren, ook naar jou als je blijft hangen. Nieuwe ronde? Nieuwe porties. Stroming duwt je opzij; zand en keien veranderen je grip. Bruine wolkjes en kameleontongen: liever eromheen.</p><p class="muted">Desktop: toetsenbord. Telefoon/tablet: knoppen in beeld. Geluid staat standaard uit.</p><button class="primary" data-close>IK BEN ER KLAAR VOOR →</button></dialog>
+  <dialog id="pause-dialog"><span class="eyebrow">EVEN OP ADEM KOMEN</span><h2>Race gepauzeerd.</h2><button id="resume" class="primary">VERDER RACEN →</button><button id="restart" class="secondary">Opnieuw starten</button><button id="back-menu" class="text-button">Terug naar habitats</button></dialog>
+  <dialog id="results-dialog"><span class="eyebrow">FINISH / TANKRUSH CUP</span><h2 id="result-title">Finish!</h2><p id="result-time"></p><ol id="standings"></ol><button id="race-again" class="primary">NOG EEN RONDJE CHAOS →</button><button id="choose-world" class="text-button">Andere habitat kiezen</button></dialog>
+  <section id="fatal" role="alert" hidden><h2>Deze race heeft 3D-versnelling nodig.</h2><p id="fatal-message">Schakel hardwareversnelling in en probeer een recente browser met WebGL 2.</p><button onclick="location.reload()">Opnieuw proberen</button></section>
+  <footer id="menu-footer"><span>mITy.John / EXPERIMENTAL GAMES</span><span>TOETSENBORD + TOUCH <b>↗</b></span></footer>
+  <noscript>TankRush heeft JavaScript nodig om de 3D-race te starten.</noscript>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+[
+  {
+    "name": "submarine",
+    "file": "submarine.glb",
+    "bytes": 117540,
+    "triangles": 3196,
+    "nodes": 27,
+    "source": "../src/models.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "buggy",
+    "file": "buggy.glb",
+    "bytes": 174412,
+    "triangles": 1772,
+    "nodes": 84,
+    "source": "../src/models.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "guppy",
+    "file": "guppy.glb",
+    "bytes": 62740,
+    "triangles": 1698,
+    "nodes": 17,
+    "source": "../src/models.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "piranha",
+    "file": "piranha.glb",
+    "bytes": 70572,
+    "triangles": 1734,
+    "nodes": 22,
+    "source": "../src/models.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "spider",
+    "file": "spider.glb",
+    "bytes": 166448,
+    "triangles": 4004,
+    "nodes": 48,
+    "source": "../src/models.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "snake",
+    "file": "snake.glb",
+    "bytes": 192872,
+    "triangles": 5580,
+    "nodes": 50,
+    "source": "../src/models.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "monitor",
+    "file": "monitor.glb",
+    "bytes": 270600,
+    "triangles": 6956,
+    "nodes": 73,
+    "source": "../src/models.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "chameleon",
+    "file": "chameleon.glb",
+    "bytes": 152216,
+    "triangles": 3184,
+    "nodes": 48,
+    "source": "../src/models.js",
+    "license": "Original project asset; see ASSETS.md"
+  }
+]
