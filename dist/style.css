@@ -7,4 +7,16 @@
 @media(max-height:670px){.topbar{padding-top:18px}.menu{top:19%}h1{font-size:50px;margin:13px 0}.intro{font-size:14px;line-height:1.3;margin-bottom:14px}.world-select legend{margin-bottom:8px}.world{padding:10px}.world-select{margin-bottom:12px}.text-button{margin-top:12px}.primary{min-height:47px;padding:12px 18px}.eyebrow{font-size:9px}#menu-footer{bottom:12px}.race-status{top:18px}.race-status strong{font-size:25px}#toast{top:88px}.minimap-panel{top:auto;bottom:30px}.speedometer{bottom:25px}}
 @media(pointer:coarse){body.racing #touch-controls{display:block!important}.minimap-panel{bottom:auto;top:190px}.race-hint{display:none}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.joystick-panel{position:fixed;left:max(16px,env(safe-area-inset-left));bottom:max(18px,env(safe-area-inset-bottom));width:140px;text-align:center;user-select:none;-webkit-user-select:none}
+#joystick{position:relative;width:140px;height:140px;border:1px solid #c8f65f66;border-radius:50%;background:radial-gradient(circle,#c8f65f0d 0 30%,transparent 31% 62%,#c8f65f12 63% 64%,#06282dbb 65%);touch-action:none;box-shadow:inset 0 0 25px #00191f66}
+#joystick:focus-visible{outline:3px solid var(--lime);outline-offset:3px}
+#joystick.active{border-color:var(--lime);background-color:#c8f65f12}
+.joystick-thumb{position:absolute;left:43px;top:43px;width:54px;height:54px;border-radius:50%;background:#d5fa9ce6;border:2px solid #efffdc;box-shadow:0 3px 14px #001a2488;pointer-events:none}
+.joystick-guide{position:absolute;left:0;right:0;top:6px;color:#c8f65f99;font-size:18px;pointer-events:none}
+.joystick-label{display:block;margin-top:7px;font-size:9px;letter-spacing:1.3px;color:#d0e4c3;pointer-events:none}
+.touch-actions{right:max(16px,env(safe-area-inset-right));bottom:max(25px,env(safe-area-inset-bottom));grid-template-columns:repeat(2,54px)}
+#touch-reset{grid-column:span 2;min-height:36px!important;font-size:10px!important;letter-spacing:.8px}
+@media(any-pointer:coarse){body.racing{touch-action:none}body.racing #touch-controls{display:block!important}.item-panel{display:none}.speedometer{bottom:185px}.speedometer kbd{display:none}.race-hint{display:none}.minimap-panel{bottom:auto;top:190px}}
+@media(any-pointer:coarse) and (max-height:500px){.minimap-panel{display:none}.speedometer{bottom:25px}.race-status{top:18px}.race-status strong{font-size:24px}.race-status{gap:18px;padding:9px 16px}#toast{top:95px}.brand small{display:none}}
+@media(any-pointer:coarse) and (max-width:370px){.joystick-panel{width:124px}#joystick{width:124px;height:124px}.joystick-thumb{left:35px;top:35px}.touch-actions{right:12px}.top-actions{gap:8px}.topbar{padding-left:16px;padding-right:16px}}
 @media(max-height:700px){.menu{top:100px;max-height:calc(100dvh - 140px);overflow-y:auto;padding-right:12px;padding-bottom:12px}.menu .intro{display:none}.menu h1{margin-top:12px;margin-bottom:16px}#menu-footer{bottom:12px}}
