@@ -1,15 +1,20 @@
-import {HABITATS,getHabitat,SPECIES} from './habitats.js?v=7';
-import {Simulation,pathPoint} from './simulation.js?v=7';
-import {bindJoystick} from './input.js?v=7';
-import {RaceScene} from './scene.js?v=7';
-import {preloadModels} from './assets.js?v=7';
+import {HABITATS,getHabitat,SPECIES} from './habitats.js?v=8';
+import {Simulation,pathPoint} from './simulation.js?v=8';
+import {bindJoystick} from './input.js?v=8';
+import {RaceScene} from './scene.js?v=8';
+import {preloadModels} from './assets.js?v=8';
 const $=s=>document.querySelector(s);
 const joystick=bindJoystick($('#joystick'));
 function clearControls(){keys.clear();touch.clear();joystick.reset();document.querySelectorAll('[data-control].active').forEach(b=>b.classList.remove('active'));}
-const keys=new Set(),touch=new Set();let sim=new Simulation('aquarium'),view,pausedFrom='racing',last=0,accumulator=0,lastEvent=null,toastUntil=0,activeWorld='amazon',audioOn=false,audioContext=null,osc=null,gain=null,deferredInstall=null;
+const keys=new Set(),touch=new Set();let sim=new Simulation('aquarium'),view,frameStarted=false,pausedFrom='racing',last=0,accumulator=0,lastEvent=null,toastUntil=0,activeWorld='amazon',audioOn=false,audioContext=null,osc=null,gain=null,deferredInstall=null;
 const timeString=t=>`${String(Math.floor(t/60)).padStart(2,'0')}:${(t%60).toFixed(1).padStart(4,'0')}`;
 function fatal(error){console.error(error);$('#fatal').hidden=false;$('#menu').hidden=true;$('#start').disabled=true;}
-try{view=new RaceScene($('#game'));}catch(e){fatal(e);}
+addEventListener('error',event=>fatal(event.error||new Error(event.message)));
+addEventListener('unhandledrejection',event=>fatal(event.reason||new Error('Onbekende laadfout')));
+function ensureView(){
+ if(view)return true;
+ try{view=new RaceScene($('#game'));return true;}catch(e){fatal(e);return false;}
+}
 const lastSelection={aquarium:'amazon',terrarium:'outback'};
 function renderHabitats(kind){
  const entries=HABITATS.filter(h=>h.kind===kind);$('#habitat-options').replaceChildren(...entries.map(h=>{
@@ -25,7 +30,14 @@ function setMode(key){
  view?.setWorld(sim);$('#vehicle-hint').textContent=h.kind==='aquarium'?'Q / E stijgen & duiken':'Zand, keien en planten veranderen je grip';document.querySelectorAll('[data-control="rise"],[data-control="dive"]').forEach(b=>b.hidden=h.kind!=='aquarium');
  preloadModels(h.id).catch(e=>console.warn('Model fallback active',e));
 }
-function startRace(){closeDialogs();clearControls();sim=new Simulation(activeWorld);sim.start();lastEvent=null;view.setWorld(sim);document.body.classList.add('racing');$('#menu').hidden=true;$('#habitat-label').hidden=true;$('#menu-footer').hidden=true;$('#hud').hidden=false;$('#pause').hidden=false;$('#touch-controls').hidden=!matchMedia('(any-pointer:coarse)').matches;$('#countdown').textContent='3';accumulator=0;if(audioOn)ensureAudio();}
+function startRace(){
+ closeDialogs();clearControls();$('#start').disabled=true;$('#start').textContent='RACE LADEN…';
+ requestAnimationFrame(()=>setTimeout(()=>{
+  if(!ensureView())return;
+  try{sim=new Simulation(activeWorld);sim.start();lastEvent=null;view.setWorld(sim);}catch(e){fatal(e);return;}
+  document.body.classList.add('racing');$('#menu').hidden=true;$('#habitat-label').hidden=true;$('#menu-footer').hidden=true;$('#hud').hidden=false;$('#pause').hidden=false;$('#touch-controls').hidden=!matchMedia('(any-pointer:coarse)').matches;$('#countdown').textContent='3';accumulator=0;$('#start').disabled=false;$('#start').innerHTML='START DE RACE <span>→</span>';if(!frameStarted){frameStarted=true;requestAnimationFrame(frame);}if(audioOn)ensureAudio();
+ },40));
+}
 function menu(){closeDialogs();clearControls();document.body.classList.remove('racing');$('#hud').hidden=true;$('#pause').hidden=true;$('#touch-controls').hidden=true;$('#menu').hidden=false;$('#habitat-label').hidden=false;$('#menu-footer').hidden=false;setMode(activeWorld);}
 function closeDialogs(){document.querySelectorAll('dialog[open]').forEach(d=>d.close());}
 function pause(){if(!['racing','countdown'].includes(sim.phase))return;pausedFrom=sim.phase;sim.phase='paused';clearControls();$('#pause-dialog').showModal();}
@@ -50,9 +62,8 @@ function updateHud(dt){hudTime+=dt;const r=sim.racers[0];if(sim.phase==='countdo
 function frame(t){requestAnimationFrame(frame);if(!view)return;const dt=Math.min(.1,(t-(last||t))/1000);last=t;accumulator+=dt;const controls=input();while(accumulator>=1/60){sim.step(1/60,controls);accumulator-=1/60;}view.update(sim,Math.min(dt,1/20),sim.phase==='menu',sim.phase==='racing'?accumulator*60:1);if(sim.phase!=='menu')updateHud(dt);if(sim.phase==='finished')finish();if(audioContext&&audioOn){const running=sim.phase==='racing';osc.frequency.setTargetAtTime(50+Math.abs(sim.racers[0].speed)*7,audioContext.currentTime,.1);gain.gain.setTargetAtTime(running?.022:0,audioContext.currentTime,.1);}}
 function boot(){
  setMode(activeWorld);
- if(view)requestAnimationFrame(frame);
 }
-// Let the menu paint before constructing the first 3D room on slower phones.
-requestAnimationFrame(()=>requestAnimationFrame(boot));
+// The page stays lightweight until the player explicitly starts the 3D race.
+requestAnimationFrame(boot);
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;$('#install').hidden=false;});$('#install').addEventListener('click',async()=>{if(deferredInstall){await deferredInstall.prompt();deferredInstall=null;$('#install').hidden=true;}});addEventListener('appinstalled',()=>$('#install').hidden=true);
 if('serviceWorker'in navigator){addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(e=>console.warn('Offline cache unavailable',e)));}
