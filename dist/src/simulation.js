@@ -1,4 +1,4 @@
-import {getHabitat,SPECIES,constrainToTank} from './habitats.js?v=5';
+import {getHabitat,SPECIES,constrainToTank} from './habitats.js?v=6';
 // Pure deterministic simulation: no DOM or rendering dependencies.
 export const TAU = Math.PI * 2;
 export const HABITAT = {halfWidth:108,halfDepth:78,trackX:82,trackZ:58,roadHalfWidth:7};
@@ -19,7 +19,21 @@ export function terrainHeight(x,z,key='terrarium'){
  return Math.max(.3,wave*(h.theme==='desert'?1.7:1)+mound);
 }
 export function pathPoint(key,t,time=0){
- const h=getHabitat(key),a=t*TAU,x=Math.cos(a)*h.trackX+Math.sin(3*a+h.phase)*h.wobble,z=Math.sin(a)*h.trackZ+Math.sin(2*a)*h.wobble*.5;
+ const h=getHabitat(key),a=t*TAU,c=Math.cos(a),s=Math.sin(a);let nx=c,nz=s;
+ switch(h.course){
+  case 'river': nx=c*.88+Math.sin(2*a)*.12;nz=s*.78+Math.sin(3*a+.4)*.2;break;
+  case 'hourglass': {const r=.76+.2*Math.cos(2*a);nx=c*r;nz=s*(1.03-.08*Math.cos(2*a));break;}
+  case 'chicane': nx=c*.94+Math.sin(2*a)*.05;nz=s*.72+Math.sin(3*a)*.23;break;
+  case 'kidney': {const r=.8+.17*Math.cos(a-.7);nx=c*r+Math.sin(2*a)*.06;nz=s*r;break;}
+  case 'orbit': nx=c;nz=s;break;
+  case 'mesa': nx=Math.sign(c)*Math.abs(c)**.48*.9;nz=Math.sign(s)*Math.abs(s)**.48*.86;break;
+  case 'cactus': nx=c*.98+Math.cos(2*a)*.12;nz=s*.98+Math.sin(3*a+.5)*.1;break;
+  case 'clover': {const r=.96+.12*Math.cos(3*a);nx=c*r;nz=s*r;break;}
+  case 'cascade': nx=c*.95+Math.sin(2*a)*.11;nz=s*.93+Math.sin(2*a+.8)*.12;break;
+  case 'spiral': {const r=.98+.12*Math.sin(a);nx=c*r;nz=s*r+Math.sin(2*a)*.06;break;}
+  default: nx=c;nz=s;
+ }
+ const x=nx*h.trackX,z=nz*h.trackZ;
  return {x,y:h.kind==='aquarium'?h.depth+Math.sin(2*a+h.phase)*h.swing+Math.sin(time*.42+a)*1.2:terrainHeight(x,z,h)+1.3,z};
 }
 export function pathHeading(key,t){const a=pathPoint(key,t),b=pathPoint(key,t+.001);return Math.atan2(b.x-a.x,b.z-a.z);}
@@ -31,7 +45,7 @@ export class Simulation {
  constructor(mode='aquarium',seed=43){this.habitat=getHabitat(mode);this.mode=this.habitat.kind;this.config={...WORLD[this.mode],title:this.habitat.name,top:(this.habitat.waterLevel||this.habitat.height)-5};this.gateParameters=gateParameters(this.habitat);this.config.gates=this.gateParameters.length;this.rocks=[];const scenery=random(this.habitat.seed+5);for(let i=0;i<Math.ceil(this.habitat.rocks/3);i++){const a=scenery()*TAU,k=.25+scenery()*.35;this.rocks.push([Math.cos(a)*this.habitat.trackX*k,Math.sin(a)*this.habitat.trackZ*k,3+scenery()*6]);}this.rng=random(seed);this.time=0;this.elapsed=0;this.phase='menu';this.countdown=3;this.events=[];this.food=[];this.waste=[];this.tongues=[];this.racers=[];this.animals=[];this.totalLaps=3;this.nextId=0;this.createRacers();this.createAnimals();}
  createRacers(){for(let i=0;i<4;i++){const t=-.026-Math.floor(i/2)*.012,p=pathPoint(this.habitat,t),h=pathHeading(this.habitat,t),side=i%2?1.6:-1.6;p.x+=Math.cos(h)*side;p.z-=Math.sin(h)*side;this.racers.push({id:i,name:['Jij','Gilly','Pebble','Moss'][i],...p,previous:{...p},vx:0,vy:0,vz:0,yaw:h,pitch:0,roll:0,steering:0,speed:0,gate:0,passed:0,lap:1,food:3,boost:100,boosting:false,slow:0,immune:0,foodCooldown:0,finished:false,finishTime:null,grounded:true,surface:'soil'});}}
  groundAt(x,z){return terrainHeight(x,z,this.habitat);}
- createAnimals(){const count=this.config.water?12:7;for(let i=0;i<count;i++){
+ createAnimals(){const count=this.habitat.animalCount||(this.config.water?16:8);for(let i=0;i<count;i++){
   const speciesId=this.habitat.roster[i%this.habitat.roster.length],profile=SPECIES[speciesId],t=(i+.45)/count,p=pathPoint(this.habitat,t),h=pathHeading(this.habitat,t);
   p.x-=Math.cos(h)*(3+i%3);p.z+=Math.sin(h)*(3+i%3);
   if(!this.config.water)p.y=this.groundAt(p.x,p.z)+(profile.behavior==='climb'?7+(i%3)*3:.8);
