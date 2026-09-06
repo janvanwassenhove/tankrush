@@ -68,8 +68,8 @@ All runtime assets are in `dist/`. GitHub is the source repository and is public
 
 Three.js is MIT-licensed; see `dist/vendor/three/LICENSE`. Source/model licensing beyond third-party notices remains the project owner's decision.
 
-### Lightweight menu
+### Live room and rendering quality
 
-The ten home-tank previews are offline renders of the actual scene geometry, stored as 1200×800 WebP files. Reproduce with Node 22+ and Python (Pillow, NumPy): `node scripts/render-previews.mjs`. The menu imports no Three.js code; the renderer is imported on Start, with a visible loading message until the first rendered frame. Returning to the menu stops the animation loop. All collidable animals remain rendered on mobile; shared animal geometry survives scene cleanup. Room furniture is hidden during races.
+The menu progressively initializes the original live 3D room after the controls appear. A single shared renderer initialization prevents duplicate startup work. Menu animation runs at 30 fps; races use the display refresh rate. The selected scene is reused when starting or returning to the same habitat. All animals, room decor and soft shadows remain visible on mobile, with antialiasing enabled and resolution capped at 2×. The Beeld selector offers a lower 1.25× resolution while retaining shadows and model detail. Hidden tabs stop rendering.
 
-The service worker installs only the menu shell; race modules and other previews cache on use. Offline racing requires starting a race online once on that device. No mobile GPU or end-to-end browser performance measurement has been performed for this change.
+The service worker installs only the menu shell; 3D modules cache on use. Offline 3D requires loading the room online once on that device. Actual mobile GPU performance has not been measured. The previous offline WebP previews are retained as source assets but are no longer displayed.

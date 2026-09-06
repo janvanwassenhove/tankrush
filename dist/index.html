@@ -9,16 +9,16 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/png" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./style.css?v=9">
+  <link rel="stylesheet" href="./style.css?v=10">
   <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
 </head>
 <body>
-  <img id="menu-preview" src="./previews/amazon.webp" width="1200" height="800" fetchpriority="high" alt="Amazonas aquarium in een ingerichte kamer">
   <canvas id="game" aria-label="3D-racewereld"></canvas>
+  <p id="preview-status" role="status">Je kamer wordt klaargemaakt…</p>
   <div id="vignette" aria-hidden="true"></div>
   <header class="topbar">
     <a class="brand" href="./" aria-label="TankRush startscherm">TANK<span>RUSH</span><small>MICRO RACING CLUB</small></a>
-    <div class="top-actions"><span class="version">10 HABITATS</span><button id="sound" class="icon-button" aria-label="Geluid inschakelen" title="Geluid">♫</button><button id="install" class="quiet" hidden>Installeer</button><button id="pause" class="quiet" hidden>Pauze <kbd>Esc</kbd></button></div>
+    <div class="top-actions"><span class="version">10 HABITATS</span><label class="quality-label">Beeld <select id="quality" aria-label="Beeldkwaliteit"><option value="high">Hoog</option><option value="balanced">Gebalanceerd</option></select></label><button id="sound" class="icon-button" aria-label="Geluid inschakelen" title="Geluid">♫</button><button id="install" class="quiet" hidden>Installeer</button><button id="pause" class="quiet" hidden>Pauze <kbd>Esc</kbd></button></div>
   </header>
   <main id="menu" class="menu collection-menu">
     <div class="eyebrow">THE HOME TANK COLLECTION</div>
@@ -50,6 +50,6 @@
   <section id="fatal" role="alert" hidden><h2>De race kon niet verder.</h2><p id="fatal-message">Schakel hardwareversnelling in en probeer een recente browser met WebGL 2.</p><button onclick="location.reload()">Opnieuw proberen</button></section>
   <footer id="menu-footer"><span>mITy.John / EXPERIMENTAL GAMES</span><span>TOETSENBORD + TOUCH <b>↗</b></span></footer>
   <noscript>TankRush heeft JavaScript nodig om de 3D-race te starten.</noscript>
-  <script type="module" src="./src/main.js?v=9"></script>
+  <script type="module" src="./src/main.js?v=10"></script>
 </body>
 </html>
