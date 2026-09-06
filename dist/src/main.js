@@ -1,21 +1,18 @@
-import {HABITATS,getHabitat,SPECIES} from './habitats.js?v=4';
-import {Simulation,pathPoint} from './simulation.js?v=4';
-import {bindJoystick} from './input.js?v=4';
-import {RaceScene} from './scene.js?v=4';
-import {preloadModels} from './assets.js?v=4';
+import {HABITATS,getHabitat,SPECIES} from './habitats.js?v=5';
+import {Simulation,pathPoint} from './simulation.js?v=5';
+import {bindJoystick} from './input.js?v=5';
+import {RaceScene} from './scene.js?v=5';
+import {preloadModels} from './assets.js?v=5';
 const $=s=>document.querySelector(s);
 const joystick=bindJoystick($('#joystick'));
 function clearControls(){keys.clear();touch.clear();joystick.reset();document.querySelectorAll('[data-control].active').forEach(b=>b.classList.remove('active'));}
 const keys=new Set(),touch=new Set();let sim=new Simulation('aquarium'),view,pausedFrom='racing',last=0,accumulator=0,lastEvent=null,toastUntil=0,activeWorld='amazon',audioOn=false,audioContext=null,osc=null,gain=null,deferredInstall=null;
 const timeString=t=>`${String(Math.floor(t/60)).padStart(2,'0')}:${(t%60).toFixed(1).padStart(4,'0')}`;
 function fatal(error){console.error(error);$('#fatal').hidden=false;$('#menu').hidden=true;$('#start').disabled=true;}
-$('#start').disabled=true;
-$('#start').textContent='WERELD LADEN…';
-const modelResults=await preloadModels();
-if(modelResults.some(r=>r.status==='rejected'))console.warn('Some GLB models could not be loaded; original procedural model fallback is active.');
-$('#start').disabled=false;
-$('#start').innerHTML='START DE RACE <span>→</span>';
 try{view=new RaceScene($('#game'));view.setWorld(sim);}catch(e){fatal(e);}
+preloadModels().then(modelResults=>{
+ if(modelResults.some(r=>r.status==='rejected'))console.warn('Some GLB models could not be loaded; original procedural model fallback is active.');
+}).catch(e=>console.warn('Model fallback active',e));
 const lastSelection={aquarium:'amazon',terrarium:'outback'};
 function renderHabitats(kind){
  const entries=HABITATS.filter(h=>h.kind===kind);$('#habitat-options').replaceChildren(...entries.map(h=>{
