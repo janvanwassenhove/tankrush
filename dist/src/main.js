@@ -1,8 +1,8 @@
-import {HABITATS,getHabitat,SPECIES} from './habitats.js?v=5';
-import {Simulation,pathPoint} from './simulation.js?v=5';
-import {bindJoystick} from './input.js?v=5';
-import {RaceScene} from './scene.js?v=5';
-import {preloadModels} from './assets.js?v=5';
+import {HABITATS,getHabitat,SPECIES} from './habitats.js?v=6';
+import {Simulation,pathPoint} from './simulation.js?v=6';
+import {bindJoystick} from './input.js?v=6';
+import {RaceScene} from './scene.js?v=6';
+import {preloadModels} from './assets.js?v=6';
 const $=s=>document.querySelector(s);
 const joystick=bindJoystick($('#joystick'));
 function clearControls(){keys.clear();touch.clear();joystick.reset();document.querySelectorAll('[data-control].active').forEach(b=>b.classList.remove('active'));}
