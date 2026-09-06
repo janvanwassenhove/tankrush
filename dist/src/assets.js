@@ -1,9 +1,9 @@
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {createVehicle} from './models.js?v=6';
-import {createCreature,colorSpecies} from './creatures.js?v=6';
-import {getHabitat,SPECIES} from './habitats.js?v=6';
+import {createVehicle} from './models.js?v=7';
+import {createCreature,colorSpecies} from './creatures.js?v=7';
+import {getHabitat,SPECIES} from './habitats.js?v=7';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
-const cache=new Map(),loading=new Map();
+const cache=new Map(),loading=new Map(),preparedAnimals=new Map();
 export async function preloadModels(key='aquarium'){
  const h=getHabitat(key),names=[h.kind==='aquarium'?'submarine':'buggy',...new Set(h.roster.map(id=>SPECIES[id].model))],loader=new GLTFLoader();
  return Promise.allSettled(names.map(name=>{
@@ -23,4 +23,10 @@ function mergeRigid(root){
  });return root;
 }
 export function vehicleModel(mode,color){const root=clone(mode==='aquarium'?'submarine':'buggy')||createVehicle(mode,color);root.traverse(o=>{if(o.isMesh&&o.name.startsWith('paint'))o.material.color.setHex(color);});return mergeRigid(root);}
-export function animalModel(speciesId){const profile=SPECIES[speciesId];if(!profile)throw new Error(`Unknown species: ${speciesId}`);return mergeRigid(colorSpecies(clone(profile.model)||createCreature(profile.model),profile));}
+export function animalModel(speciesId){
+ const profile=SPECIES[speciesId];if(!profile)throw new Error(`Unknown species: ${speciesId}`);
+ if(!preparedAnimals.has(speciesId))preparedAnimals.set(speciesId,mergeRigid(colorSpecies(clone(profile.model)||createCreature(profile.model),profile)));
+ const root=preparedAnimals.get(speciesId).clone(true);
+ root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+ return root;
+}
