@@ -1,14 +1,18 @@
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {createVehicle} from './models.js?v=4';
-import {createCreature,colorSpecies} from './creatures.js?v=4';
-import {getHabitat,SPECIES} from './habitats.js?v=4';
+import {createVehicle} from './models.js?v=5';
+import {createCreature,colorSpecies} from './creatures.js?v=5';
+import {getHabitat,SPECIES} from './habitats.js?v=5';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 const cache=new Map(),loading=new Map();
 export async function preloadModels(key='aquarium'){
  const h=getHabitat(key),names=[h.kind==='aquarium'?'submarine':'buggy',...new Set(h.roster.map(id=>SPECIES[id].model))],loader=new GLTFLoader();
  return Promise.allSettled(names.map(name=>{
   if(cache.has(name))return cache.get(name);
-  if(!loading.has(name))loading.set(name,loader.loadAsync(new URL(`../models/${name}.glb`,import.meta.url).href).then(gltf=>{gltf.scene.userData.kind=name;cache.set(name,gltf.scene);return gltf.scene;}).finally(()=>loading.delete(name)));
+  if(!loading.has(name)){
+   const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error(`Model timeout: ${name}`)),8000));
+   const request=loader.loadAsync(new URL(`../models/${name}.glb`,import.meta.url).href).then(gltf=>{gltf.scene.userData.kind=name;cache.set(name,gltf.scene);return gltf.scene;});
+   loading.set(name,Promise.race([request,timeout]).finally(()=>loading.delete(name)));
+  }
   return loading.get(name);
  }));
 }
