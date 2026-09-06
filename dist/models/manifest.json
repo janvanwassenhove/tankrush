@@ -70,5 +70,140 @@
     "nodes": 48,
     "source": "../src/models.js",
     "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "tetra",
+    "file": "tetra.glb",
+    "bytes": 51684,
+    "triangles": 1248,
+    "nodes": 17,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "discus",
+    "file": "discus.glb",
+    "bytes": 64356,
+    "triangles": 1152,
+    "nodes": 25,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "rasbora",
+    "file": "rasbora.glb",
+    "bytes": 37084,
+    "triangles": 866,
+    "nodes": 15,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "gourami",
+    "file": "gourami.glb",
+    "bytes": 181724,
+    "triangles": 4560,
+    "nodes": 47,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "cichlid",
+    "file": "cichlid.glb",
+    "bytes": 64436,
+    "triangles": 1152,
+    "nodes": 25,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "clownfish",
+    "file": "clownfish.glb",
+    "bytes": 68988,
+    "triangles": 1872,
+    "nodes": 19,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "tang",
+    "file": "tang.glb",
+    "bytes": 58144,
+    "triangles": 1536,
+    "nodes": 17,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "shrimp",
+    "file": "shrimp.glb",
+    "bytes": 91660,
+    "triangles": 2100,
+    "nodes": 40,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "jellyfish",
+    "file": "jellyfish.glb",
+    "bytes": 115776,
+    "triangles": 3208,
+    "nodes": 48,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "bearded",
+    "file": "bearded.glb",
+    "bytes": 219048,
+    "triangles": 4584,
+    "nodes": 78,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "skink",
+    "file": "skink.glb",
+    "bytes": 190996,
+    "triangles": 4452,
+    "nodes": 61,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "gecko",
+    "file": "gecko.glb",
+    "bytes": 278636,
+    "triangles": 7128,
+    "nodes": 76,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "crested",
+    "file": "crested.glb",
+    "bytes": 308676,
+    "triangles": 7272,
+    "nodes": 94,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "frog",
+    "file": "frog.glb",
+    "bytes": 179844,
+    "triangles": 4584,
+    "nodes": 46,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
+  },
+  {
+    "name": "scorpion",
+    "file": "scorpion.glb",
+    "bytes": 136220,
+    "triangles": 2892,
+    "nodes": 55,
+    "source": "../src/creatures.js",
+    "license": "Original project asset; see ASSETS.md"
   }
 ]

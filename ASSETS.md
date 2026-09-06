@@ -1,12 +1,12 @@
 # Original TankRush 3D assets
 
-Eight original low-poly GLB models live in `dist/models/`: submarine, buggy, guppy, piranha, spider, snake, monitor lizard and chameleon.
+Twenty-three original low-poly GLB model families live in `dist/models/`: two vehicles and twenty-one creature shapes. The original guppy, piranha, spider, snake, monitor lizard and chameleon are joined by tetra, discus, rasbora, gourami, cichlid, clownfish, tang, shrimp, jellyfish, bearded dragon, skink, gecko, crested gecko, frog and scorpion families. Habitat profiles recolor and rescale these families into twenty-two named species.
 
-These are geometry-and-material models, not downloaded stock assets or copies of another game's characters. Editable object hierarchies, node names and transforms are preserved. Procedural source is `dist/src/models.js`; regenerate with `npm run models`. No external modelling service or Blender installation is needed to regenerate these first-pass models.
+These are geometry-and-material models, not downloaded stock assets or copies of another game's characters. Editable object hierarchies, node names and transforms are preserved. Procedural source is `dist/src/models.js` and `dist/src/creatures.js`; regenerate with `npm run models`. No external modelling service or Blender installation is needed to regenerate these first-pass models.
 
 ## Editing in Blender
 
-Use File → Import → glTF 2.0 to open a `.glb`. Export as glTF Binary (`.glb`) when done. Maintain +Y up and +Z forward in the exported glTF, preserve the root scale, and keep articulated node names (`propeller`, `wheel0`…`wheel3`, `tail`, `fin1`, `fin-1`, `leg0`…, `segment0`…). Vehicle paint nodes start with `paint` so opponent colors can be applied. Runtime animation is procedural, not baked animation clips. No skeletal rig, LOD chain or baked PBR textures yet.
+Use File → Import → glTF 2.0 to open a `.glb`. Export as glTF Binary (`.glb`) when done. Maintain +Y up and +Z forward in the exported glTF, preserve the root scale, and keep articulated node names (`propeller`, `wheel0`…`wheel3`, `tail`, `fin1`, `fin-1`, `leg0`…, `segment0`, `bell`, `tentacle0`…). Vehicle paint nodes start with `paint`; creature parts named `skin` and `accent` receive species-specific colors. Runtime animation is procedural, not baked animation clips. No skeletal rig, LOD chain or baked PBR textures yet.
 
 `npm run models` replaces generated GLBs with the procedural versions. If hand-editing in Blender, preserve a separate `.blend` source and do not regenerate over those edits.
 

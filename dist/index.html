@@ -9,7 +9,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/png" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./style.css?v=3">
+  <link rel="stylesheet" href="./style.css?v=4">
   <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
 </head>
 <body>
@@ -17,18 +17,16 @@
   <div id="vignette" aria-hidden="true"></div>
   <header class="topbar">
     <a class="brand" href="./" aria-label="TankRush startscherm">TANK<span>RUSH</span><small>MICRO RACING CLUB</small></a>
-    <div class="top-actions"><span class="version">PROTOTYPE / 02</span><button id="sound" class="icon-button" aria-label="Geluid inschakelen" title="Geluid">♫</button><button id="install" class="quiet" hidden>Installeer</button><button id="pause" class="quiet" hidden>Pauze <kbd>Esc</kbd></button></div>
+    <div class="top-actions"><span class="version">10 HABITATS</span><button id="sound" class="icon-button" aria-label="Geluid inschakelen" title="Geluid">♫</button><button id="install" class="quiet" hidden>Installeer</button><button id="pause" class="quiet" hidden>Pauze <kbd>Esc</kbd></button></div>
   </header>
-  <main id="menu" class="menu">
-    <div class="eyebrow"><span class="dash"></span> KLEINE RACERS. WILDE WERELDEN.</div>
-    <h1>Welcome to<br>the <em>food chain.</em></h1>
-    <p class="intro">Jij racet hier.<br>De bewoners hebben andere plannen.</p>
-    <fieldset class="world-select"><legend>KIES JE HABITAT</legend>
-      <button type="button" data-world="aquarium" class="world selected" aria-pressed="true"><span class="world-no">01</span><span><strong>Diep Water</strong><small>Aquarium · duikboot · vrije 3D-route</small></span><span class="world-mark">↗</span></button>
-      <button type="button" data-world="terrarium" class="world" aria-pressed="false"><span class="world-no">02</span><span><strong>Wildgroei</strong><small>Terrarium · buggy · ruig terrein</small></span><span class="world-mark">↗</span></button>
-    </fieldset>
+  <main id="menu" class="menu collection-menu">
+    <div class="eyebrow">THE HOME TANK COLLECTION</div>
+    <h1>Kies je <em>bak.</em></h1>
+    <div class="habitat-tabs" role="group" aria-label="Type habitat"><button type="button" data-world="aquarium" class="selected" aria-pressed="true">Aquariums <span>5</span></button><button type="button" data-world="terrarium" aria-pressed="false">Terrariums <span>5</span></button></div>
+    <div id="habitat-options" aria-label="Kies een habitat"></div>
+    <section class="habitat-details" aria-live="polite"><h2 id="habitat-name">Amazonas · Blackwater</h2><p id="tank-spec"></p><p id="habitat-description"></p><div id="species-list" aria-label="Bewoners"></div></section>
     <div class="start-row"><button id="start" class="primary">START DE RACE <span>→</span></button><span>3 RONDES<br>4 RACERS</span></div>
-    <button id="help" class="text-button">Hoe overleef ik dit? <span>↗</span></button>
+    <button id="help" class="text-button">Besturing &amp; spelregels</button>
   </main>
   <aside id="habitat-label" class="habitat-label"><span>HABITAT 01 / AQUARIUM</span><strong>Diep Water</strong><small>Guppies · piranha’s · een slechte timing</small></aside>
   <div id="hud" hidden>
@@ -49,6 +47,6 @@
   <section id="fatal" role="alert" hidden><h2>Deze race heeft 3D-versnelling nodig.</h2><p id="fatal-message">Schakel hardwareversnelling in en probeer een recente browser met WebGL 2.</p><button onclick="location.reload()">Opnieuw proberen</button></section>
   <footer id="menu-footer"><span>mITy.John / EXPERIMENTAL GAMES</span><span>TOETSENBORD + TOUCH <b>↗</b></span></footer>
   <noscript>TankRush heeft JavaScript nodig om de 3D-race te starten.</noscript>
-  <script type="module" src="./src/main.js?v=3"></script>
+  <script type="module" src="./src/main.js?v=4"></script>
 </body>
 </html>

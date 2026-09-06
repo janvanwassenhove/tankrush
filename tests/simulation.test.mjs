@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Simulation,pathPoint,pathHeading,terrainHeight,segmentDistance,HABITAT,distance} from '../dist/src/simulation.js';
+import {Simulation,pathPoint,pathHeading,terrainHeight,segmentDistance,distance} from '../dist/src/simulation.js';
+import {HABITATS,constrainToTank} from '../dist/src/habitats.js';
 import {joystickAxes} from '../dist/src/input.js';
 function start(s){s.start();for(let i=0;i<190;i++)s.step(1/60);}
 test('neutral coasting stops without reversing; reverse requires explicit input',()=>{
@@ -30,11 +31,12 @@ test('opposite steering mirrors the turn, reverses in reverse gear, and cannot s
     if(speed===0)assert.equal(r.yaw,yaw);else assert.ok((r.yaw-yaw)*Math.sign(speed)<0);
   }
 });
-test('longer circuits give at least 29 units between gates, with space around the course',()=>{
-  for(const mode of ['aquarium','terrarium']){
-    let length=0;for(let i=0;i<1000;i++){const p=pathPoint(mode,i/1000);length+=distance(p,pathPoint(mode,(i+1)/1000));assert.ok(Math.abs(p.x)+12<HABITAT.halfWidth&&Math.abs(p.z)+12<HABITAT.halfDepth);}
-    assert.ok(length>430);
-    for(let i=0;i<12;i++)assert.ok(distance(pathPoint(mode,i/12),pathPoint(mode,(i+1)/12))>29);
+test('all circuits leave room at the walls and checkpoints are spaced for reaction time',()=>{
+  for(const habitat of HABITATS){
+    const s=new Simulation(habitat.id);let length=0;
+    for(let i=0;i<1000;i++){const p=pathPoint(habitat,i/1000);length+=distance(p,pathPoint(habitat,(i+1)/1000));assert.deepEqual(constrainToTank(habitat,p.x,p.z,12),{x:p.x,z:p.z});}
+    assert.ok(length>300,habitat.id);
+    for(let i=0;i<s.config.gates;i++)assert.ok(distance(s.gatePoint(i),s.gatePoint((i+1)%s.config.gates))>30,habitat.id);
   }
 });
 test('recovery before the first gate returns to the starting approach',()=>{
@@ -47,7 +49,7 @@ test('vertical input changes submarine depth and never lifts buggy with Q/E',()=
 test('boost consumes charge, regenerates and resets cleanly',()=>{const s=new Simulation();start(s);const r=s.racers[0];for(let i=0;i<60;i++)s.move(r,1/60,{throttle:1,boost:true});assert.ok(r.boost<80);for(let i=0;i<120;i++)s.move(r,1/60,{});assert.ok(r.boost>85);s.resetRacer();assert.equal(r.speed,0);assert.equal(r.passed,0);});
 test('food is finite, spawns behind racer, attracts animals and expires',()=>{const s=new Simulation();start(s);const r=s.racers[0];assert.equal(s.dropFood(),true);assert.equal(r.food,2);assert.equal(s.dropFood(),false);const f=s.food[0];assert.ok((f.x-r.x)*Math.sin(r.yaw)+(f.z-r.z)*Math.cos(r.yaw)<0);s.animals[0].x=f.x+4;s.animals[0].y=f.y;s.animals[0].z=f.z;s.updateAnimals(.02);assert.equal(s.animals[0].target,f.id);s.updateFood(10);assert.equal(s.food.length,0);});
 test('checkpoints cannot be skipped or counted in reverse',()=>{const s=new Simulation();const r=s.racers[0];const skip=s.gatePoint(5);Object.assign(r,skip);r.previous={...skip,x:skip.x-1};s.checkGate(r);assert.equal(r.passed,0);const p=s.gatePoint(0),h=pathHeading('aquarium',0);Object.assign(r,p);r.previous={x:p.x+Math.sin(h),y:p.y,z:p.z+Math.cos(h)};s.checkGate(r);assert.equal(r.passed,0);});
-test('3 full laps required after crossing starting gate',()=>{const s=new Simulation();const r=s.racers[0];for(let i=0;i<37;i++){const p=s.gatePoint(r.gate),h=pathHeading('aquarium',r.gate/12);Object.assign(r,p);r.previous={x:p.x-Math.sin(h),y:p.y,z:p.z-Math.cos(h)};s.checkGate(r);if(i<36)assert.equal(r.finished,false);}assert.equal(r.finished,true);assert.equal(r.passed,37);});
+test('3 full laps required after crossing starting gate',()=>{for(const habitat of HABITATS){const s=new Simulation(habitat.id),r=s.racers[0],crossings=s.config.gates*3+1;for(let i=0;i<crossings;i++){const p=s.gatePoint(r.gate),h=pathHeading(s.habitat,s.gateParameter(r.gate));Object.assign(r,p);r.previous={x:p.x-Math.sin(h),y:p.y,z:p.z-Math.cos(h)};s.checkGate(r);if(i<crossings-1)assert.equal(r.finished,false);}assert.equal(r.finished,true);assert.equal(r.passed,crossings);}});
 test('waste and tongue have actual collision effects',()=>{const s=new Simulation('terrarium');start(s);const r=s.racers[0];r.immune=0;s.waste.push({...r,radius:2,ttl:3});s.collisions();assert.ok(r.slow>0);r.immune=0;r.slow=0;s.waste=[];s.tongues=[{from:{...r,x:r.x-5},to:{...r,x:r.x+5},age:.4,ttl:1,hit:new Set()}];s.collisions();assert.ok(r.slow>2);assert.ok(segmentDistance(r,s.tongues[0].from,s.tongues[0].to)<1e-6);});
-test('deterministic simulation and bounds over long run',()=>{for(const mode of ['aquarium','terrarium']){const a=new Simulation(mode,55),b=new Simulation(mode,55);start(a);start(b);for(let i=0;i<1200;i++){const input={throttle:1,steer:.35,vertical:Math.sin(i*.02)};a.step(1/60,input);b.step(1/60,input);}assert.deepEqual(a.racers,b.racers);for(const r of a.racers){assert.ok(Number.isFinite(r.x+r.y+r.z));assert.ok(Math.abs(r.x)<HABITAT.halfWidth&&Math.abs(r.z)<HABITAT.halfDepth);}}});
-test('AI navigation can complete both habitats',()=>{for(const mode of ['aquarium','terrarium']){const s=new Simulation(mode,123);start(s);for(let i=0;i<36000&&s.phase!=='finished';i++)s.step(1/60,s.aiInput(s.racers[0]));assert.equal(s.racers[0].finished,true,`${mode}: ${s.racers[0].passed} gates`);}});
+test('deterministic simulation and bounds over long run',()=>{for(const habitat of HABITATS){const a=new Simulation(habitat.id,55),b=new Simulation(habitat.id,55);start(a);start(b);for(let i=0;i<1200;i++){const input={throttle:1,steer:.35,vertical:Math.sin(i*.02)};a.step(1/60,input);b.step(1/60,input);}assert.deepEqual(a.racers,b.racers);for(const r of a.racers){assert.ok(Number.isFinite(r.x+r.y+r.z));assert.deepEqual(constrainToTank(habitat,r.x,r.z),{x:r.x,z:r.z});}}});
+test('AI navigation can complete all ten habitats',()=>{for(const habitat of HABITATS){const s=new Simulation(habitat.id,123);start(s);for(let i=0;i<36000&&s.phase!=='finished';i++)s.step(1/60,s.aiInput(s.racers[0]));assert.equal(s.racers[0].finished,true,`${habitat.id}: ${s.racers[0].passed} gates`);}});

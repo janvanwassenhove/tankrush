@@ -1,0 +1,119 @@
+import * as THREE from 'three';
+import {tankOutline,constrainToTank} from './habitats.js?v=4';
+import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
+const up=new THREE.Vector3(0,1,0);
+const material=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.8,...extra});
+function add(parent,geo,mat,p=[0,0,0],s=[1,1,1],name=''){const m=new THREE.Mesh(geo,mat);m.position.set(...p);m.scale.set(...s);m.name=name;m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
+function beam(parent,a,b,r,mat,name=''){const av=new THREE.Vector3(...a),bv=new THREE.Vector3(...b),d=bv.clone().sub(av);const m=add(parent,new THREE.CylinderGeometry(r,r,d.length(),6),mat);m.position.copy(av).add(bv).multiplyScalar(.5);m.quaternion.setFromUnitVectors(up,d.normalize());m.name=name;return m;}
+function slab(parent,size,mat,p,name=''){return add(parent,new THREE.BoxGeometry(...size),mat,p,[1,1,1],name);}
+function mergeStatic(parent){
+ const batches=new Map();for(const m of [...parent.children]){if(!m.isMesh||m.material.transparent)continue;const a=m.material,key=[a.color.getHex(),a.emissive.getHex(),a.emissiveIntensity,a.roughness,a.metalness,a.side,Object.keys(m.geometry.attributes).sort().join(',')].join('/');if(!batches.has(key))batches.set(key,[]);batches.get(key).push(m);}
+ for(const meshes of batches.values()){if(meshes.length<2)continue;const copies=meshes.map(m=>{m.updateMatrix();return (m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone()).applyMatrix4(m.matrix);});const geo=mergeGeometries(copies,false);if(geo){add(parent,geo,meshes[0].material,[0,0,0],[1,1,1],'Static scenery');for(const m of meshes)parent.remove(m);}copies.forEach(g=>g.dispose());}
+}
+function surface(h,height){
+ const corners=tankOutline(h),outline=[];for(let i=0;i<corners.length;i++){const a=corners[i],b=corners[(i+1)%corners.length],n=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/8));for(let j=0;j<n;j++)outline.push({x:a.x+(b.x-a.x)*j/n,z:a.z+(b.z-a.z)*j/n});}
+ const n=outline.length,rings=24,vertices=[0,height(0,0),0],indices=[];
+ for(let r=1;r<=rings;r++)for(const p of outline){const x=p.x*r/rings,z=p.z*r/rings;vertices.push(x,height(x,z),z);}
+ for(let i=0;i<n;i++)indices.push(0,1+(i+1)%n,1+i);
+ for(let r=0;r<rings-1;r++)for(let i=0;i<n;i++){const a=1+r*n+i,b=1+r*n+(i+1)%n,c=a+n,d=b+n;indices.push(a,b,c,b,d,c);}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));g.setIndex(indices);g.computeVertexNormals();return g;
+}
+export function buildDecor(scene,sim,rng){
+ const h=sim.habitat,p=h.palette,w=h.halfWidth,d=h.halfDepth,top=h.height,water=sim.config.water;
+ const shell=new THREE.Group();shell.name='Home tank · '+h.shape;scene.add(shell);
+ const room=new THREE.Group();room.name='Living room and aquarium cabinet';scene.add(room);
+ const dark=material(0x242b2b),wood=material(p.wood),metal=material(0x454d4e,{metalness:.65,roughness:.3}),glass=material(0xd5edf0,{transparent:true,opacity:.09,roughness:.08,metalness:.15,side:THREE.DoubleSide,depthWrite:false});
+ slab(room,[1400,4,1100],material(0x393c40),[0,-79,80],'Room floor');
+ slab(room,[1400,440,4],material(0x424b4e),[0,140,-d-68],'Room wall');
+ slab(room,[1400,4,2],material(0x737d7b),[0,-73,-d-64],'Skirting');
+ for(let x=-600;x<650;x+=70)slab(room,[.5,.08,1100],material(0x555b5c),[x,-76.95,80]);
+ slab(room,[w*2+8,66,d*2+8],wood,[0,-39,0],'Display cabinet');
+ slab(room,[w*2+12,5,d*2+12],dark,[0,-4,0],'Cabinet top');
+ for(const sign of [-1,1]){slab(room,[w-3,55,1.5],material(0x635246),[sign*w*.5,-39,d+5],'Cabinet door');slab(room,[1,10,2],metal,[sign*5,-35,d+7],'Door handle');}
+ const outline=tankOutline(h),waterfalls=[],plants=[],shellMaterials=[glass];
+ add(shell,surface(h,()=>-1),dark,[0,0,0],[1,1,1],'Tank base');
+ const ground=add(scene,surface(h,(x,z)=>sim.groundAt(x,z)),material(p.ground),[0,0,0],[1,1,1],'Substrate');
+ for(let i=0;i<outline.length;i++){
+  const a=outline[i],b=outline[(i+1)%outline.length],length=Math.hypot(b.x-a.x,b.z-a.z),angle=Math.atan2(b.z-a.z,b.x-a.x);
+  const pane=add(shell,new THREE.PlaneGeometry(length,top),glass,[(a.x+b.x)/2,top/2,(a.z+b.z)/2],[1,1,1],'Glass wall');pane.rotation.y=-angle;
+  for(const y of [0,top])beam(shell,[a.x,y,a.z],[b.x,y,b.z],h.shape==='cube'?.28:1.1,dark,'Tank rim');
+  if(h.shape!=='cylinder'&&h.shape!=='bowfront')beam(shell,[a.x,0,a.z],[a.x,top,a.z],water?.32:.8,metal,'Corner seam');
+  beam(shell,[a.x,3,a.z],[b.x,3,b.z],1.5,material(p.ground),'Substrate edge');
+ }
+ if(water){
+  add(shell,surface(h,()=>h.waterLevel),material(p.light,{transparent:true,opacity:.1,roughness:.15,side:THREE.DoubleSide,depthWrite:false}),[0,0,0],[.995,1,.995],'Waterline');
+  if(h.theme==='jelly'){
+   for(const y of [4,top-3])add(shell,new THREE.CylinderGeometry(w,w,5,64,true),dark,[0,y,0],[1,1,d/w],'Circular filter housing');
+   add(shell,new THREE.TorusGeometry(w-2,.7,6,64),material(p.accent,{emissive:p.accent,emissiveIntensity:1.4}),[0,top-4,0]).rotation.x=Math.PI/2;
+  }else{
+   const fx=-w+8,fz=-d+9;
+   slab(shell,[8,top*.52,7],dark,[fx,top*.32,fz],'Internal filter');
+   for(let i=0;i<8;i++)slab(shell,[6,.6,.2],metal,[fx,9+i*2,fz+3.6],'Intake slot');
+   beam(shell,[fx,top*.58,fz],[fx,top*.87,fz],1.2,metal,'Return tube');beam(shell,[fx,top*.87,fz],[fx+14,top*.87,fz],1.2,metal);
+   beam(shell,[w-5,10,-d+5],[w-5,top*.56,-d+5],.9,dark,'Heater');
+  }
+  for(const sign of [-1,1])beam(shell,[sign*w*.65,top,0],[sign*w*.65,top+8,0],.8,metal,'Light bracket');
+  slab(shell,[w*1.45,3,9],dark,[0,top+9,0],'Aquarium LED bar');
+  slab(shell,[w*1.36,.3,6],material(p.light,{emissive:p.light,emissiveIntensity:2}),[0,top+7.3,0],'LED strip');
+ }else{
+  // Functional-looking front doors, screen lid and lamps distinguish vivariums from fish tanks.
+  if(h.shape!=='hexagon'){
+   slab(shell,[w*2,4,2],dark,[0,9,d+.2],'Front ventilation strip');
+   for(let i=0;i<28;i++)slab(shell,[w*1.8/40,1,.4],metal,[-w*.9+i*w*1.8/27,9,d+1.3]);
+   beam(shell,[0,11,d+.4],[0,top,d+.4],.5,metal,'Door seam');
+   for(const sign of [-1,1])slab(shell,[1.4,8,2],dark,[sign*3,top*.42,d+1.5],'Door latch');
+  }
+  for(let i=-10;i<=10;i++){const x=w*i/11,a=constrainToTank(h,x,-d,1),b=constrainToTank(h,x,d,1);beam(shell,[a.x,top,a.z],[b.x,top,b.z],.16,metal,'Mesh lid');}
+  for(let i=-10;i<=10;i++){const z=d*i/11,a=constrainToTank(h,-w,z,1),b=constrainToTank(h,w,z,1);beam(shell,[a.x,top,a.z],[b.x,top,b.z],.16,metal);}
+  const lamp=add(shell,new THREE.ConeGeometry(10,9,24,1,true),dark,[-w*.4,top+8,0],[1,1,1],'Heat lamp');
+  add(shell,new THREE.SphereGeometry(3,12,8),material(p.light,{emissive:p.light,emissiveIntensity:2}),[-w*.4,top+5,0]);
+  slab(shell,[w*.8,3,6],dark,[w*.3,top+5,-d*.45],'UVB fixture');
+  const bowl=add(scene,new THREE.CylinderGeometry(6,7,2.4,20),material(p.rock),[w*.66,sim.groundAt(w*.66,d*.5)+.9,d*.5],[1,1,1],'Water dish');
+  add(scene,new THREE.CircleGeometry(5.4,20),material(0x638f95,{roughness:.1}),[bowl.position.x,bowl.position.y+1.3,bowl.position.z]).rotation.x=-Math.PI/2;
+ }
+ const rockGeo=new THREE.IcosahedronGeometry(1,1),rockMat=material(p.rock);
+ for(const [x,z,s] of sim.rocks)add(scene,rockGeo,rockMat,[x,sim.groundAt(x,z)+s*.6,z],[s,s*1.4,s*.8],'Collision boulder');
+ for(let i=0;i<h.rocks;i++){
+  const a=rng()*Math.PI*2,k=.2+rng()*.45,x=Math.cos(a)*h.trackX*k,z=Math.sin(a)*h.trackZ*k,s=3+rng()*(h.theme==='rift'?12:6);
+  const r=add(scene,rockGeo,rockMat,[x,sim.groundAt(x,z)+s*.6,z],[s*1.3,s*(h.theme==='outback'?.4:1.1),s],'Hardscape rock');r.rotation.y=rng()*6;
+ }
+ function plant(x,z,height,style=h.theme){
+  const g=new THREE.Group();g.position.set(x,sim.groundAt(x,z),z);g.name=style==='reef'?'Branching coral':'Live plant';scene.add(g);const m=material(style==='reef'?[0xe5a580,0xbb8ada,0x7baab8][Math.floor(rng()*3)]:p.leaf,{side:THREE.DoubleSide});
+  if(style==='desert'||style==='outback'){
+   for(let i=0;i<7;i++){const a=i*2.4,leaf=add(g,new THREE.ConeGeometry(.9,height,4),m,[Math.sin(a)*2,height*.37,Math.cos(a)*2],[1,1,.4]);leaf.rotation.z=Math.sin(a)*.6;leaf.rotation.x=Math.cos(a)*.6;}
+  }else if(style==='reef'){
+   for(let i=0;i<5;i++){const a=i*2.4,b=[Math.sin(a)*height*.4,height*(.5+rng()*.5),Math.cos(a)*height*.4];beam(g,[0,0,0],b,.5,m);for(const sign of [-1,1])beam(g,b,[b[0]+sign*2,b[1]+3,b[2]+1],.35,m);}
+  }else{
+   for(let i=0;i<5;i++){
+    const a=i*2.4,stem=[Math.sin(a)*3,height*(.65+rng()*.35),Math.cos(a)*3];beam(g,[0,0,0],stem,.15,m);
+    for(let j=1;j<=3;j++){const leaf=add(g,new THREE.SphereGeometry(1,6,4),m,[stem[0]*j/3,stem[1]*j/3,stem[2]*j/3],[style==='ferns'?1.2:2.2,.16,style==='planted'?3.8:5]);leaf.rotation.set(.3,a+j,.35);if(style==='ferns')for(let k=-2;k<=2;k++)beam(g,[stem[0]*j/3,stem[1]*j/3,stem[2]*j/3],[stem[0]*j/3+k,stem[1]*j/3+.3,stem[2]*j/3+3-Math.abs(k)],.12,m);}
+   }
+  }
+  plants.push({g,phase:rng()*6});
+ }
+ for(let i=0;i<h.plants;i++){
+  const a=rng()*Math.PI*2,k=i%3===0?.25+rng()*.3:1.28+rng()*.08;
+  const pt=constrainToTank(h,Math.cos(a)*h.trackX*k,Math.sin(a)*h.trackZ*k,8);
+  plant(pt.x,pt.z,water?16+rng()*h.height*.34:12+rng()*h.height*.3);
+ }
+ const bark=material(p.wood);
+ for(let i=0;i<h.branches;i++){
+  const x=(rng()-.5)*h.trackX,z=(rng()-.5)*h.trackZ,y=sim.groundAt(x,z),height=water?20+rng()*h.height*.25:22+rng()*h.height*.55;
+  const b=[x+8,y+height,z-7];beam(scene,[x,y,z],b,1.5+rng(),bark,'Driftwood / climbing branch');beam(scene,b,[b[0]-10,b[1]+8,b[2]+5],.8,bark);
+ }
+ for(const a of sim.animals.filter(a=>a.profile.behavior==='climb'))beam(scene,[a.home.x-4,sim.groundAt(a.home.x-4,a.home.z),a.home.z],[a.home.x+4,a.home.y-.6,a.home.z],.7,bark,'Animal perch');
+ if(h.theme==='blackwater'||h.theme==='ferns')for(let i=0;i<65;i++){const x=(rng()-.5)*w*1.7,z=(rng()-.5)*d*1.7,leaf=add(scene,new THREE.SphereGeometry(1,5,3),material(i%2?0x82603c:0xa47b45),[x,sim.groundAt(x,z)+.1,z],[1.4,.08,3]);leaf.rotation.y=rng()*6;}
+ if(h.theme==='reef'){
+  for(let i=0;i<24;i++)plant((rng()-.5)*h.trackX,(rng()-.5)*h.trackZ,6+rng()*14,'reef');
+  for(let i=0;i<3;i++){const x=(i-1)*22,z=8;for(let j=0;j<16;j++){const a=j*2.4,r=2+rng()*4;beam(scene,[x+Math.cos(a)*r,sim.groundAt(x,z),z+Math.sin(a)*r],[x+Math.cos(a)*r,5+rng()*4,z+Math.sin(a)*r],.35,material(0xbce6aa),'Anemone tentacle');}}
+ }
+ if(h.waterfall){const f=h.waterfall;
+  for(let i=0;i<6;i++)add(scene,rockGeo,rockMat,[f.x-3,6+i*12,f.z-8],[10-i*.6,10,7],'Waterfall rock wall');
+  const sheet=slab(scene,[7,f.height,.4],material(0x96dadd,{transparent:true,opacity:.48,roughness:.2,side:THREE.DoubleSide}),[f.x,f.height/2+3,f.z-1],'Waterfall');waterfalls.push(sheet);
+  const pool=add(scene,new THREE.CircleGeometry(f.pool,40),material(0x519998,{transparent:true,opacity:.75,roughness:.12}),[f.x,sim.groundAt(f.x,f.z)+.22,f.z],[1,1,1],'Shallow stream crossing');pool.rotation.x=-Math.PI/2;
+  const coords=[];for(let i=0;i<100;i++)coords.push(f.x+(rng()-.5)*7,rng()*f.height+3,f.z+(rng()-.5)*2);
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(coords,3));const drops=new THREE.Points(g,new THREE.PointsMaterial({color:0xddfff5,size:.6,transparent:true,opacity:.8}));drops.userData.fall=f;scene.add(drops);waterfalls.push(drops);
+ }
+ plants.forEach(({g})=>mergeStatic(g));mergeStatic(room);mergeStatic(shell);mergeStatic(scene);
+ return {plants,waterfalls,shellMaterials,ground,shell};
+}
