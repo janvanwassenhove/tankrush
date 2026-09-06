@@ -1,11 +1,51 @@
 import * as THREE from 'three';
-import {tankOutline,constrainToTank} from './habitats.js?v=5';
+import {tankOutline,constrainToTank} from './habitats.js?v=6';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 const up=new THREE.Vector3(0,1,0);
 const material=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.8,...extra});
 function add(parent,geo,mat,p=[0,0,0],s=[1,1,1],name=''){const m=new THREE.Mesh(geo,mat);m.position.set(...p);m.scale.set(...s);m.name=name;m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
 function beam(parent,a,b,r,mat,name=''){const av=new THREE.Vector3(...a),bv=new THREE.Vector3(...b),d=bv.clone().sub(av);const m=add(parent,new THREE.CylinderGeometry(r,r,d.length(),6),mat);m.position.copy(av).add(bv).multiplyScalar(.5);m.quaternion.setFromUnitVectors(up,d.normalize());m.name=name;return m;}
 function slab(parent,size,mat,p,name=''){return add(parent,new THREE.BoxGeometry(...size),mat,p,[1,1,1],name);}
+function furnishRoom(room,h,w,d,rng){
+ const themes={
+  blackwater:[0x27322f,0xb86e45,0xd5b56b],planted:[0x20352f,0x5aa57d,0xe1c675],rift:[0x303a43,0x4f86ad,0xd8ba72],
+  reef:[0x20384b,0x55a9b8,0xf08f68],jelly:[0x202644,0x7a6bd0,0xb9a8ff],outback:[0x4a2f28,0xb85f3e,0xe5b76e],
+  desert:[0x4b3b32,0xc99761,0x78a18b],canopy:[0x25382e,0x57905d,0xe4b467],waterfall:[0x203a39,0x3a8b82,0xefd172],ferns:[0x29382f,0x77975c,0xd3a56b]
+ },[wall,accent,soft]=themes[h.theme]||themes.planted,upholstery=material(accent),pale=material(soft),ink=material(0x202526),frame=material(0x6b5139);
+ // A compact themed chamber: wall colour, framed art, seating, shelving and lived-in objects.
+ room.children.find(o=>o.name==='Room wall').material.color.setHex(wall);
+ slab(room,[w*1.35,1.2,d*1.45],material(soft,{roughness:1}),[0,-76,d*.12],'Room rug');
+ const sofaX=w+42,sofaZ=-d*.38;
+ slab(room,[38,12,16],upholstery,[sofaX,-66,sofaZ],'Lounge chair seat');
+ slab(room,[38,30,7],upholstery,[sofaX,-52,sofaZ-7],'Lounge chair back');
+ for(const sign of [-1,1])slab(room,[5,18,17],ink,[sofaX+sign*20,-58,sofaZ],'Chair arm');
+ for(const sign of [-1,1])beam(room,[sofaX+sign*14,-72,sofaZ-5],[sofaX+sign*14,-78,sofaZ-5],1.2,ink,'Chair leg');
+ const shelfX=-w-38;
+ slab(room,[30,72,7],frame,[shelfX,-39,-d-55],'Display shelf');
+ for(let y=-65;y<-5;y+=15)slab(room,[28,2,12],ink,[shelfX,y,-d-47],'Shelf');
+ for(let i=0;i<9;i++)slab(room,[2+rng()*3,8+rng()*7,7],material(i%3===0?accent:i%3===1?soft:0x765849),[shelfX-11+i*2.8,-61+(i%3)*15,-d-40],'Book');
+ for(let i=0;i<3;i++){
+  const x=(i-1)*34,cy=55+(i%2)*18;
+  slab(room,[29,cy===55?30:24,2.4],frame,[x,cy,-d-65],'Picture frame');
+  slab(room,[24,cy===55?25:19,1],material(i===1?accent:soft,{emissive:i===1?accent:0,emissiveIntensity:.08}),[x,cy,-d-63.6],'Regional wall art');
+ }
+ const side=-w-18;
+ for(let i=0;i<5;i++){
+  const x=side+i*7,z=d+20+(i%2)*7,y=-74+(i%3)*2,color=[accent,soft,0x4f79b8,0xd76555][i%4];
+  const toy=add(room,i%2?new THREE.SphereGeometry(3,8,6):new THREE.BoxGeometry(6,6,6),material(color),[x,y,z],[1,1,1],'Kids toy');toy.rotation.y=rng()*3;
+ }
+ const tableX=w+35,tableZ=d*.42;
+ slab(room,[28,3,18],frame,[tableX,-58,tableZ],'Side table');
+ for(const sx of [-1,1])for(const sz of [-1,1])beam(room,[tableX+sx*11,-59,tableZ+sz*6],[tableX+sx*11,-77,tableZ+sz*6],1.2,ink,'Table leg');
+ const pot=add(room,new THREE.CylinderGeometry(5,4,7,10),material(0x9a6749),[tableX,-53,tableZ],[1,1,1],'Houseplant pot');
+ for(let i=0;i<7;i++){const a=i*2.3;beam(room,[tableX,-49,tableZ],[tableX+Math.sin(a)*8,-31-rng()*8,tableZ+Math.cos(a)*6],.7,material(0x4f8051),'Houseplant');}
+ if(['jelly','reef','waterfall'].includes(h.theme)){
+  const lampX=-w-18;beam(room,[lampX,-77,-d*.2],[lampX,15,-d*.2],1.3,ink,'Floor lamp');
+  add(room,new THREE.ConeGeometry(12,18,20,1,true),material(accent,{side:THREE.DoubleSide}),[lampX,15,-d*.2],[1,1,1],'Floor lamp shade');
+ }else{
+  add(room,new THREE.SphereGeometry(9,12,8),material(soft),[-w-18,-66,d+35],[1,1,1],'Play ball');
+ }
+}
 function mergeStatic(parent){
  const batches=new Map();for(const m of [...parent.children]){if(!m.isMesh||m.material.transparent)continue;const a=m.material,key=[a.color.getHex(),a.emissive.getHex(),a.emissiveIntensity,a.roughness,a.metalness,a.side,Object.keys(m.geometry.attributes).sort().join(',')].join('/');if(!batches.has(key))batches.set(key,[]);batches.get(key).push(m);}
  for(const meshes of batches.values()){if(meshes.length<2)continue;const copies=meshes.map(m=>{m.updateMatrix();return (m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone()).applyMatrix4(m.matrix);});const geo=mergeGeometries(copies,false);if(geo){add(parent,geo,meshes[0].material,[0,0,0],[1,1,1],'Static scenery');for(const m of meshes)parent.remove(m);}copies.forEach(g=>g.dispose());}
@@ -30,6 +70,7 @@ export function buildDecor(scene,sim,rng){
  slab(room,[w*2+8,66,d*2+8],wood,[0,-39,0],'Display cabinet');
  slab(room,[w*2+12,5,d*2+12],dark,[0,-4,0],'Cabinet top');
  for(const sign of [-1,1]){slab(room,[w-3,55,1.5],material(0x635246),[sign*w*.5,-39,d+5],'Cabinet door');slab(room,[1,10,2],metal,[sign*5,-35,d+7],'Door handle');}
+ furnishRoom(room,h,w,d,rng);
  const outline=tankOutline(h),waterfalls=[],plants=[],shellMaterials=[glass];
  add(shell,surface(h,()=>-1),dark,[0,0,0],[1,1,1],'Tank base');
  const ground=add(scene,surface(h,(x,z)=>sim.groundAt(x,z)),material(p.ground),[0,0,0],[1,1,1],'Substrate');
