@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import {pathPoint,pathHeading,random,wrap} from './simulation.js?v=6';
-import {constrainToTank} from './habitats.js?v=6';
-import {buildDecor} from './decor.js?v=6';
-import {animateModel} from './models.js?v=6';
-import {vehicleModel,animalModel} from './assets.js?v=6';
+import {pathPoint,pathHeading,random,wrap} from './simulation.js?v=7';
+import {constrainToTank} from './habitats.js?v=7';
+import {buildDecor} from './decor.js?v=7';
+import {animateModel} from './models.js?v=7';
+import {vehicleModel,animalModel} from './assets.js?v=7';
 const up=new THREE.Vector3(0,1,0);
 const road=7;
 export function racerPose(r,alpha=1){const p=r.previous||r,pose={};for(const axis of ['x','y','z'])pose[axis]=p[axis]+(r[axis]-p[axis])*alpha;for(const angle of ['yaw','pitch','roll'])pose[angle]=r[angle]+wrap((p[angle]??r[angle])-r[angle])*(1-alpha);return pose;}
