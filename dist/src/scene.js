@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import {pathPoint,pathHeading,random,wrap} from './simulation.js?v=8';
-import {constrainToTank} from './habitats.js?v=8';
-import {buildDecor} from './decor.js?v=8';
-import {animateModel} from './models.js?v=8';
-import {vehicleModel,animalModel} from './assets.js?v=8';
+import {pathPoint,pathHeading,random,wrap} from './simulation.js?v=9';
+import {constrainToTank} from './habitats.js?v=9';
+import {buildDecor} from './decor.js?v=9';
+import {animateModel} from './models.js?v=9';
+import {vehicleModel,animalModel} from './assets.js?v=9';
 const up=new THREE.Vector3(0,1,0);
 const road=7;
 export function racerPose(r,alpha=1){const p=r.previous||r,pose={};for(const axis of ['x','y','z'])pose[axis]=p[axis]+(r[axis]-p[axis])*alpha;for(const angle of ['yaw','pitch','roll'])pose[angle]=r[angle]+wrap((p[angle]??r[angle])-r[angle])*(1-alpha);return pose;}
@@ -13,16 +13,16 @@ function rod(a,b,r,material){const av=new THREE.Vector3(...a),bv=new THREE.Vecto
 export class RaceScene{
  constructor(canvas){this.lowPower=matchMedia('(any-pointer:coarse)').matches||(navigator.hardwareConcurrency||8)<=8;this.renderer=new THREE.WebGLRenderer({canvas,antialias:!this.lowPower,powerPreference:this.lowPower?'low-power':'high-performance'});this.renderer.setPixelRatio(this.lowPower?1:Math.min(devicePixelRatio,1.6));this.renderer.shadowMap.enabled=!this.lowPower;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.18;this.scene=new THREE.Scene();this.camera=new THREE.PerspectiveCamera(48,1,.1,1400);this.camera.position.set(69,45,77);this.target=new THREE.Vector3();this.effects=new Map();this.racers=[];this.animals=[];this.gates=[];this.plants=[];this.time=0;this.resize();window.addEventListener('resize',()=>this.resize());}
  resize(){this.renderer.setSize(innerWidth,innerHeight,false);this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();}
- clear(){this.scene.traverse(o=>{o.geometry?.dispose();if(o.material){for(const m of Array.isArray(o.material)?o.material:[o.material])m.dispose();}});this.scene.clear();this.effects.clear();this.racers=[];this.animals=[];this.gates=[];this.plants=[];this.routeLine=null;}
+ clear(){this.scene.traverse(o=>{if(o.userData.sharedResources)return;o.shadow?.dispose();o.geometry?.dispose();if(o.material){for(const m of Array.isArray(o.material)?o.material:[o.material])m.dispose();}});this.scene.clear();this.effects.clear();this.racers=[];this.animals=[];this.gates=[];this.plants=[];this.routeLine=null;}
  setWorld(sim){
   this.clear();this.habitat=sim.habitat;this.mode=sim.mode;this.water=sim.config.water;const h=sim.habitat,p=h.palette,rng=random(h.seed);
   this.scene.background=new THREE.Color(0x202a30);this.scene.fog=new THREE.FogExp2(p.water,.001);
   this.scene.add(new THREE.HemisphereLight(p.light,0x38412e,2.4));const sun=new THREE.DirectionalLight(p.light,3.1);sun.position.set(-h.halfWidth*.3,h.height+35,15);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-h.halfWidth-15,right:h.halfWidth+15,top:h.halfDepth+15,bottom:-h.halfDepth-15,near:1,far:h.height+180});sun.shadow.bias=-.0005;this.scene.add(sun);
   const fill=new THREE.DirectionalLight(p.accent,.75);fill.position.set(40,h.height*.7,40);this.scene.add(fill);
-  const decor=buildDecor(this.scene,sim,rng);this.plants=decor.plants;this.waterfalls=decor.waterfalls;this.shellMaterials=decor.shellMaterials;this.tankShell=decor.shell;
+  const decor=buildDecor(this.scene,sim,rng);this.plants=decor.plants;this.waterfalls=decor.waterfalls;this.shellMaterials=decor.shellMaterials;this.tankShell=decor.shell;this.room=decor.room;this.room.visible=false;
   this.createRoute(sim);this.createParticles(rng);
   sim.racers.forEach(r=>{const g=vehicleModel(sim.mode,sim.config.colors[r.id]);this.racers.push(g);this.scene.add(g);});
-  this.animalIndices=[];sim.animals.forEach((a,i)=>{if(this.lowPower&&i>=12)return;const g=animalModel(a.speciesId);this.animalIndices.push(i);this.animals.push(g);this.scene.add(g);});
+  this.animalIndices=[];sim.animals.forEach((a,i)=>{const g=animalModel(a.speciesId);this.animalIndices.push(i);this.animals.push(g);this.scene.add(g);});
   this.cameraReady=false;
  }
  createRoute(sim){const points=Array.from({length:145},(_,i)=>{const p=pathPoint(sim.habitat,i/144);return new THREE.Vector3(p.x,p.y,p.z)});if(this.water){const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineDashedMaterial({color:0xb7ffd7,dashSize:.7,gapSize:1.1,transparent:true,opacity:.27}));line.computeLineDistances();this.scene.add(line);this.routeLine=line;}else{const vertices=[];for(let i=0;i<=180;i++){const t=i/180,p=pathPoint(sim.habitat,t),h=pathHeading(sim.habitat,t);for(const sign of [-1,1]){const x=p.x+Math.cos(h)*road*sign,z=p.z-Math.sin(h)*road*sign;vertices.push(x,sim.groundAt(x,z)+.05,z);}}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));const indices=[];for(let i=0;i<180;i++){const n=i*2;indices.push(n,n+1,n+2,n+1,n+3,n+2);}geo.setIndex(indices);geo.computeVertexNormals();this.scene.add(mesh(geo,mat(sim.habitat.palette.ground,{side:THREE.DoubleSide})));const markerGeo=new THREE.BoxGeometry(.25,.35,1.2),markerMats=[mat(0x696344),mat(0xcdbb8c)],markers=markerMats.map(m=>new THREE.InstancedMesh(markerGeo,m,76)),counts=[0,0],dummy=new THREE.Object3D();for(let i=0;i<75;i++){const p=pathPoint(sim.habitat,i/75),h=pathHeading(sim.habitat,i/75),kind=i%2;for(const s of [-1,1]){dummy.position.set(p.x+Math.cos(h)*(road+.4)*s,sim.groundAt(p.x+Math.cos(h)*(road+.4)*s,p.z-Math.sin(h)*(road+.4)*s)+.16,p.z-Math.sin(h)*(road+.4)*s);dummy.rotation.y=h;dummy.updateMatrix();markers[kind].setMatrixAt(counts[kind]++,dummy.matrix);}}markers.forEach((m,i)=>{m.count=counts[i];m.instanceMatrix.needsUpdate=true;m.castShadow=true;m.receiveShadow=true;this.scene.add(m);});}

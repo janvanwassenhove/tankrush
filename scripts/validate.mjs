@@ -12,5 +12,5 @@ const sw=await readFile('dist/sw.js','utf8');const assets=sw.match(/const ASSETS
 // Verify exact cache keys, including versions, across entrypoints and local module imports.
 const origin='https://tankrush.invalid/',cached=new Set(JSON.parse(assets.replaceAll("'",'"')).map(p=>new URL(p,origin).href));
 for(const m of html.matchAll(/(?:src|href)="(\.\/[^\"]+)"/g))assert.ok(cached.has(new URL(m[1],origin).href),`Entrypoint missing from offline cache: ${m[1]}`);
-for(const f of files.filter(p=>p.startsWith('dist/src/')&&p.endsWith('.js'))){const source=await readFile(f,'utf8');for(const m of source.matchAll(/\bfrom\s*['"](\.[^'"]+)['"]/g))assert.ok(cached.has(new URL(m[1],new URL(f.slice(5),origin)).href),`Module missing from offline cache: ${f} -> ${m[1]}`);}
+for(const f of files.filter(p=>p.startsWith('dist/src/')&&p.endsWith('.js'))){const source=await readFile(f,'utf8');for(const m of source.matchAll(/(?:\bfrom\s*|\bimport\s*\()['"](\.[^'"]+)['"]/g))assert.ok(cached.has(new URL(m[1],new URL(f.slice(5),origin)).href),`Module missing from offline cache: ${f} -> ${m[1]}`);}
 console.log(`Validated ${files.length} public assets, JavaScript syntax, entrypoint, manifest and offline cache.`);

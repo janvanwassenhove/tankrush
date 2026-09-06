@@ -1,19 +1,20 @@
-import {HABITATS,getHabitat,SPECIES} from './habitats.js?v=8';
-import {Simulation,pathPoint} from './simulation.js?v=8';
-import {bindJoystick} from './input.js?v=8';
-import {RaceScene} from './scene.js?v=8';
-import {preloadModels} from './assets.js?v=8';
+import {HABITATS,getHabitat,SPECIES} from './habitats.js?v=9';
+import {Simulation,pathPoint} from './simulation.js?v=9';
+import {bindJoystick} from './input.js?v=9';
 const $=s=>document.querySelector(s);
 const joystick=bindJoystick($('#joystick'));
 function clearControls(){keys.clear();touch.clear();joystick.reset();document.querySelectorAll('[data-control].active').forEach(b=>b.classList.remove('active'));}
 const keys=new Set(),touch=new Set();let sim=new Simulation('aquarium'),view,frameStarted=false,pausedFrom='racing',last=0,accumulator=0,lastEvent=null,toastUntil=0,activeWorld='amazon',audioOn=false,audioContext=null,osc=null,gain=null,deferredInstall=null;
 const timeString=t=>`${String(Math.floor(t/60)).padStart(2,'0')}:${(t%60).toFixed(1).padStart(4,'0')}`;
-function fatal(error){console.error(error);$('#fatal').hidden=false;$('#menu').hidden=true;$('#start').disabled=true;}
+function fatal(error){console.error(error);frameStarted=false;$('#fatal-message').textContent=error?.message||'De race kon niet verder. Probeer de pagina opnieuw te openen.';$('#fatal').hidden=false;$('#menu').hidden=true;$('#start').disabled=true;}
 addEventListener('error',event=>fatal(event.error||new Error(event.message)));
 addEventListener('unhandledrejection',event=>fatal(event.reason||new Error('Onbekende laadfout')));
-function ensureView(){
- if(view)return true;
- try{view=new RaceScene($('#game'));return true;}catch(e){fatal(e);return false;}
+let starting=false;
+const paint=()=>new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));
+async function ensureView(){
+ if(view)return;
+ const {RaceScene}=await import('./scene.js?v=9');
+ view=new RaceScene($('#game'));
 }
 const lastSelection={aquarium:'amazon',terrarium:'outback'};
 function renderHabitats(kind){
@@ -27,21 +28,30 @@ function setMode(key){
  document.querySelectorAll('[data-world]').forEach(b=>{const selected=b.dataset.world===h.kind;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected));});
  renderHabitats(h.kind);$('#habitat-name').textContent=h.name;$('#habitat-description').textContent=h.description;$('#tank-spec').textContent=`${h.shapeLabel} · ${h.size}`;$('#species-list').replaceChildren(...h.roster.map(id=>{const item=document.createElement('span');item.textContent=SPECIES[id].name;item.title=SPECIES[id].latin;return item;}));
  $('#habitat-label').querySelector('span').textContent=`${h.kind.toUpperCase()} / ${h.region.toUpperCase()}`;$('#habitat-label').querySelector('strong').textContent=h.name.split(' · ')[1];$('#habitat-label').querySelector('small').textContent=h.shapeLabel;
- view?.setWorld(sim);$('#vehicle-hint').textContent=h.kind==='aquarium'?'Q / E stijgen & duiken':'Zand, keien en planten veranderen je grip';document.querySelectorAll('[data-control="rise"],[data-control="dive"]').forEach(b=>b.hidden=h.kind!=='aquarium');
- preloadModels(h.id).catch(e=>console.warn('Model fallback active',e));
+ const preview=$('#menu-preview');preview.src=`./previews/${h.id}.webp`;preview.alt=`${h.name}: ${h.shapeLabel} in een ingerichte kamer`;$('#vehicle-hint').textContent=h.kind==='aquarium'?'Q / E stijgen & duiken':'Zand, keien en planten veranderen je grip';document.querySelectorAll('[data-control="rise"],[data-control="dive"]').forEach(b=>b.hidden=h.kind!=='aquarium');
+
 }
-function startRace(){
+async function startRace(){
+ if(starting)return;starting=true;$('#loading-error').hidden=true;
  closeDialogs();clearControls();$('#start').disabled=true;$('#start').textContent='RACE LADEN…';
- requestAnimationFrame(()=>setTimeout(()=>{
-  if(!ensureView())return;
-  try{sim=new Simulation(activeWorld);sim.start();lastEvent=null;view.setWorld(sim);}catch(e){fatal(e);return;}
-  document.body.classList.add('racing');$('#menu').hidden=true;$('#habitat-label').hidden=true;$('#menu-footer').hidden=true;$('#hud').hidden=false;$('#pause').hidden=false;$('#touch-controls').hidden=!matchMedia('(any-pointer:coarse)').matches;$('#countdown').textContent='3';accumulator=0;$('#start').disabled=false;$('#start').innerHTML='START DE RACE <span>→</span>';if(!frameStarted){frameStarted=true;requestAnimationFrame(frame);}if(audioOn)ensureAudio();
- },40));
+ $('#loading').hidden=false;$('#loading-status').textContent='3D-race laden…';
+ document.querySelectorAll('[data-world],.habitat-option').forEach(b=>b.disabled=true);
+ try{
+  await paint();
+  let timeout;try{await Promise.race([ensureView(),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('Het laden duurt te lang. Controleer je verbinding en probeer opnieuw.')),20000);})]);}finally{clearTimeout(timeout);}
+  $('#loading-status').textContent='Parcours en dieren klaarmaken…';await paint();
+  sim=new Simulation(activeWorld);sim.start();lastEvent=null;view.setWorld(sim);
+  $('#loading-status').textContent='Eerste racebeeld tekenen…';await paint();
+  view.update(sim,0,false,1);if(view.renderer.getContext().isContextLost())throw new Error('De browser heeft de 3D-weergave onderbroken. Open de pagina opnieuw.');
+  document.body.classList.add('racing');$('#menu').hidden=true;$('#habitat-label').hidden=true;$('#menu-footer').hidden=true;$('#hud').hidden=false;$('#pause').hidden=false;$('#touch-controls').hidden=!matchMedia('(any-pointer:coarse)').matches;$('#countdown').textContent='3';accumulator=0;last=0;
+  if(!frameStarted){frameStarted=true;requestAnimationFrame(frame);}if(audioOn)ensureAudio();
+ }catch(e){console.error(e);$('#loading-error').textContent=e.message||'De race kon niet starten. Probeer opnieuw.';$('#loading-error').hidden=false;}
+ finally{starting=false;$('#loading').hidden=true;$('#start').disabled=false;$('#start').innerHTML='START DE RACE <span>→</span>';document.querySelectorAll('[data-world],.habitat-option').forEach(b=>b.disabled=false);}
 }
-function menu(){closeDialogs();clearControls();document.body.classList.remove('racing');$('#hud').hidden=true;$('#pause').hidden=true;$('#touch-controls').hidden=true;$('#menu').hidden=false;$('#habitat-label').hidden=false;$('#menu-footer').hidden=false;setMode(activeWorld);}
+function menu(){if(gain)gain.gain.value=0;closeDialogs();clearControls();document.body.classList.remove('racing');$('#hud').hidden=true;$('#pause').hidden=true;$('#touch-controls').hidden=true;$('#menu').hidden=false;$('#habitat-label').hidden=false;$('#menu-footer').hidden=false;setMode(activeWorld);}
 function closeDialogs(){document.querySelectorAll('dialog[open]').forEach(d=>d.close());}
 function pause(){if(!['racing','countdown'].includes(sim.phase))return;pausedFrom=sim.phase;sim.phase='paused';clearControls();$('#pause-dialog').showModal();}
-function resume(){if(sim.phase!=='paused')return;$('#pause-dialog').close();sim.phase=pausedFrom;accumulator=0;}
+function resume(){if(sim.phase!=='paused')return;if(!frameStarted){frameStarted=true;last=0;requestAnimationFrame(frame);}$('#pause-dialog').close();sim.phase=pausedFrom;accumulator=0;}
 function finish(){if($('#results-dialog').open)return;const ranking=sim.ranking(),place=ranking.findIndex(r=>r.id===0)+1;$('#result-title').textContent=place===1?'Bovenaan de voedselketen.':`P${place}. Je hebt het overleefd.`;$('#result-time').textContent=`${sim.config.title} · 3 rondes · ${timeString(sim.racers[0].finishTime)}`;$('#standings').replaceChildren(...ranking.map((r,i)=>{const li=document.createElement('li');li.className=r.id===0?'you':'';const a=document.createElement('span'),b=document.createElement('span');a.textContent=`${i+1}. ${r.name}`;b.textContent=r.finished?timeString(r.finishTime):`Ronde ${Math.min(r.lap,3)} · nog onderweg`;li.append(a,b);return li;}));$('#results-dialog').showModal();beep(660,.3);clearControls();}
 document.querySelectorAll('[data-world]').forEach(b=>b.addEventListener('click',()=>setMode(lastSelection[b.dataset.world])));
 $('#start').addEventListener('click',startRace);$('#help').addEventListener('click',()=>$('#info-dialog').showModal());document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));$('#pause').addEventListener('click',pause);$('#resume').addEventListener('click',resume);$('#restart').addEventListener('click',startRace);$('#race-again').addEventListener('click',startRace);$('#back-menu').addEventListener('click',menu);$('#choose-world').addEventListener('click',menu);$('#food').addEventListener('click',()=>sim.dropFood());$('#touch-food').addEventListener('click',()=>sim.dropFood());$('#pause-dialog').addEventListener('cancel',e=>{e.preventDefault();resume();});$('#results-dialog').addEventListener('cancel',e=>{e.preventDefault();menu();});
@@ -59,11 +69,11 @@ const map=$('#minimap').getContext('2d');
 function drawMap(){const w=220,h=170;map.clearRect(0,0,w,h);const scale=Math.min(100/sim.habitat.halfWidth,75/sim.habitat.halfDepth),project=p=>[110+p.x*scale,85+p.z*scale];map.beginPath();for(let i=0;i<=90;i++){const [x,y]=project(pathPoint(sim.habitat,i/90,sim.time));if(i===0)map.moveTo(x,y);else map.lineTo(x,y);}map.strokeStyle='#c4ddb740';map.lineWidth=8;map.stroke();map.lineWidth=1;map.strokeStyle='#c4ddb799';map.stroke();const gate=project(sim.gatePoint(sim.racers[0].gate));map.strokeStyle='#ccff77';map.lineWidth=2;map.beginPath();map.arc(...gate,6,0,Math.PI*2);map.stroke();for(const a of sim.animals){const [x,y]=project(a);map.fillStyle=a.target?'#ffb951':'#ba8076';map.fillRect(x-2,y-2,4,4);}for(const r of [...sim.racers].reverse()){const [x,y]=project(r);map.fillStyle=r.id===0?'#e0ff89':`#${sim.config.colors[r.id].toString(16)}`;map.beginPath();map.arc(x,y,r.id===0?4:3,0,Math.PI*2);map.fill();if(!r.id){map.beginPath();map.moveTo(x,y);map.lineTo(x+Math.sin(r.yaw)*9,y+Math.cos(r.yaw)*9);map.strokeStyle='#e0ff89';map.stroke();}}}
 let hudTime=0;
 function updateHud(dt){hudTime+=dt;const r=sim.racers[0];if(sim.phase==='countdown')$('#countdown').textContent=Math.ceil(sim.countdown);else if(sim.phase==='racing'&&sim.elapsed<.7)$('#countdown').textContent='GO!';else $('#countdown').textContent='';if(hudTime<.08)return;hudTime=0;$('#speed').textContent=Math.round(Math.abs(r.speed)*3);$('#time').textContent=timeString(sim.elapsed);$('#lap').textContent=`${Math.min(r.lap,3)} / 3`;$('#position').textContent=sim.ranking().findIndex(q=>q.id===0)+1;$('#boost-meter').style.width=`${r.boost}%`;$('#food-count').textContent=`${r.food} porties`;$('#touch-food').textContent=`VOER ${r.food}`;$('#touch-food').disabled=r.food===0||r.foodCooldown>0;$('#food').disabled=r.food===0||r.foodCooldown>0;$('#gate-label').textContent=`CHECKPOINT ${r.gate+1} / ${sim.config.gates}`;const ev=sim.events.at(-1);if(ev&&ev!==lastEvent){lastEvent=ev;$('#toast').textContent=ev.text;toastUntil=sim.time+3;beep(ev.type==='hit'?110:ev.type==='food'?330:520);}$('#toast').classList.toggle('visible',sim.time<toastUntil);drawMap();}
-function frame(t){requestAnimationFrame(frame);if(!view)return;const dt=Math.min(.1,(t-(last||t))/1000);last=t;accumulator+=dt;const controls=input();while(accumulator>=1/60){sim.step(1/60,controls);accumulator-=1/60;}view.update(sim,Math.min(dt,1/20),sim.phase==='menu',sim.phase==='racing'?accumulator*60:1);if(sim.phase!=='menu')updateHud(dt);if(sim.phase==='finished')finish();if(audioContext&&audioOn){const running=sim.phase==='racing';osc.frequency.setTargetAtTime(50+Math.abs(sim.racers[0].speed)*7,audioContext.currentTime,.1);gain.gain.setTargetAtTime(running?.022:0,audioContext.currentTime,.1);}}
+function frame(t){if(sim.phase==='menu'||document.hidden){frameStarted=false;last=0;return;}if(!view)return;try{const dt=Math.min(.1,(t-(last||t))/1000);last=t;accumulator+=dt;const controls=input();while(accumulator>=1/60){sim.step(1/60,controls);accumulator-=1/60;}view.update(sim,Math.min(dt,1/20),sim.phase==='menu',sim.phase==='racing'?accumulator*60:1);if(sim.phase!=='menu')updateHud(dt);if(sim.phase==='finished')finish();if(audioContext&&audioOn){const running=sim.phase==='racing';osc.frequency.setTargetAtTime(50+Math.abs(sim.racers[0].speed)*7,audioContext.currentTime,.1);gain.gain.setTargetAtTime(running?.022:0,audioContext.currentTime,.1);}requestAnimationFrame(frame);}catch(e){fatal(e);}}
 function boot(){
  setMode(activeWorld);
 }
 // The page stays lightweight until the player explicitly starts the 3D race.
 requestAnimationFrame(boot);
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;$('#install').hidden=false;});$('#install').addEventListener('click',async()=>{if(deferredInstall){await deferredInstall.prompt();deferredInstall=null;$('#install').hidden=true;}});addEventListener('appinstalled',()=>$('#install').hidden=true);
-if('serviceWorker'in navigator){addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(e=>console.warn('Offline cache unavailable',e)));}
+if('serviceWorker'in navigator){const register=()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(e=>console.warn('Offline cache unavailable',e));if(document.readyState==='complete')register();else addEventListener('load',register,{once:true});}

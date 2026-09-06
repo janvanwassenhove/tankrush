@@ -1,7 +1,7 @@
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {createVehicle} from './models.js?v=8';
-import {createCreature,colorSpecies} from './creatures.js?v=8';
-import {getHabitat,SPECIES} from './habitats.js?v=8';
+import {createVehicle} from './models.js?v=9';
+import {createCreature,colorSpecies} from './creatures.js?v=9';
+import {getHabitat,SPECIES} from './habitats.js?v=9';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 const cache=new Map(),loading=new Map(),preparedAnimals=new Map();
 export async function preloadModels(key='aquarium'){
@@ -27,6 +27,6 @@ export function animalModel(speciesId){
  const profile=SPECIES[speciesId];if(!profile)throw new Error(`Unknown species: ${speciesId}`);
  if(!preparedAnimals.has(speciesId))preparedAnimals.set(speciesId,mergeRigid(colorSpecies(clone(profile.model)||createCreature(profile.model),profile)));
  const root=preparedAnimals.get(speciesId).clone(true);
- root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+ root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.userData.sharedResources=true;}});
  return root;
 }

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {tankOutline,constrainToTank} from './habitats.js?v=8';
+import {tankOutline,constrainToTank} from './habitats.js?v=9';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 const up=new THREE.Vector3(0,1,0);
 const material=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.8,...extra});
@@ -156,5 +156,5 @@ export function buildDecor(scene,sim,rng){
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(coords,3));const drops=new THREE.Points(g,new THREE.PointsMaterial({color:0xddfff5,size:.6,transparent:true,opacity:.8}));drops.userData.fall=f;scene.add(drops);waterfalls.push(drops);
  }
  plants.forEach(({g})=>mergeStatic(g));mergeStatic(room);mergeStatic(shell);mergeStatic(scene);
- return {plants,waterfalls,shellMaterials,ground,shell};
+ return {plants,waterfalls,shellMaterials,ground,shell,room};
 }
