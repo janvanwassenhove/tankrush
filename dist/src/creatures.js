@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three/three.module.js';
-import {createAnimal} from './models.js?v=7';
+import {createAnimal} from './models.js?v=8';
 export const CREATURE_MODELS=['tetra','discus','rasbora','gourami','cichlid','clownfish','tang','shrimp','jellyfish','bearded','skink','gecko','crested','frog','scorpion'];
 const mat=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.6,...extra});
 function part(g,name,geo,color,p=[0,0,0],s=[1,1,1],extra={}){const m=new THREE.Mesh(geo,mat(color,extra));m.name=name;m.position.set(...p);m.scale.set(...s);m.castShadow=true;m.receiveShadow=true;g.add(m);return m;}
