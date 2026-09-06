@@ -1,18 +1,15 @@
-import {HABITATS,getHabitat,SPECIES} from './habitats.js?v=6';
-import {Simulation,pathPoint} from './simulation.js?v=6';
-import {bindJoystick} from './input.js?v=6';
-import {RaceScene} from './scene.js?v=6';
-import {preloadModels} from './assets.js?v=6';
+import {HABITATS,getHabitat,SPECIES} from './habitats.js?v=7';
+import {Simulation,pathPoint} from './simulation.js?v=7';
+import {bindJoystick} from './input.js?v=7';
+import {RaceScene} from './scene.js?v=7';
+import {preloadModels} from './assets.js?v=7';
 const $=s=>document.querySelector(s);
 const joystick=bindJoystick($('#joystick'));
 function clearControls(){keys.clear();touch.clear();joystick.reset();document.querySelectorAll('[data-control].active').forEach(b=>b.classList.remove('active'));}
 const keys=new Set(),touch=new Set();let sim=new Simulation('aquarium'),view,pausedFrom='racing',last=0,accumulator=0,lastEvent=null,toastUntil=0,activeWorld='amazon',audioOn=false,audioContext=null,osc=null,gain=null,deferredInstall=null;
 const timeString=t=>`${String(Math.floor(t/60)).padStart(2,'0')}:${(t%60).toFixed(1).padStart(4,'0')}`;
 function fatal(error){console.error(error);$('#fatal').hidden=false;$('#menu').hidden=true;$('#start').disabled=true;}
-try{view=new RaceScene($('#game'));view.setWorld(sim);}catch(e){fatal(e);}
-preloadModels().then(modelResults=>{
- if(modelResults.some(r=>r.status==='rejected'))console.warn('Some GLB models could not be loaded; original procedural model fallback is active.');
-}).catch(e=>console.warn('Model fallback active',e));
+try{view=new RaceScene($('#game'));}catch(e){fatal(e);}
 const lastSelection={aquarium:'amazon',terrarium:'outback'};
 function renderHabitats(kind){
  const entries=HABITATS.filter(h=>h.kind===kind);$('#habitat-options').replaceChildren(...entries.map(h=>{
@@ -51,7 +48,11 @@ function drawMap(){const w=220,h=170;map.clearRect(0,0,w,h);const scale=Math.min
 let hudTime=0;
 function updateHud(dt){hudTime+=dt;const r=sim.racers[0];if(sim.phase==='countdown')$('#countdown').textContent=Math.ceil(sim.countdown);else if(sim.phase==='racing'&&sim.elapsed<.7)$('#countdown').textContent='GO!';else $('#countdown').textContent='';if(hudTime<.08)return;hudTime=0;$('#speed').textContent=Math.round(Math.abs(r.speed)*3);$('#time').textContent=timeString(sim.elapsed);$('#lap').textContent=`${Math.min(r.lap,3)} / 3`;$('#position').textContent=sim.ranking().findIndex(q=>q.id===0)+1;$('#boost-meter').style.width=`${r.boost}%`;$('#food-count').textContent=`${r.food} porties`;$('#touch-food').textContent=`VOER ${r.food}`;$('#touch-food').disabled=r.food===0||r.foodCooldown>0;$('#food').disabled=r.food===0||r.foodCooldown>0;$('#gate-label').textContent=`CHECKPOINT ${r.gate+1} / ${sim.config.gates}`;const ev=sim.events.at(-1);if(ev&&ev!==lastEvent){lastEvent=ev;$('#toast').textContent=ev.text;toastUntil=sim.time+3;beep(ev.type==='hit'?110:ev.type==='food'?330:520);}$('#toast').classList.toggle('visible',sim.time<toastUntil);drawMap();}
 function frame(t){requestAnimationFrame(frame);if(!view)return;const dt=Math.min(.1,(t-(last||t))/1000);last=t;accumulator+=dt;const controls=input();while(accumulator>=1/60){sim.step(1/60,controls);accumulator-=1/60;}view.update(sim,Math.min(dt,1/20),sim.phase==='menu',sim.phase==='racing'?accumulator*60:1);if(sim.phase!=='menu')updateHud(dt);if(sim.phase==='finished')finish();if(audioContext&&audioOn){const running=sim.phase==='racing';osc.frequency.setTargetAtTime(50+Math.abs(sim.racers[0].speed)*7,audioContext.currentTime,.1);gain.gain.setTargetAtTime(running?.022:0,audioContext.currentTime,.1);}}
-setMode(activeWorld);
-if(view)requestAnimationFrame(frame);
+function boot(){
+ setMode(activeWorld);
+ if(view)requestAnimationFrame(frame);
+}
+// Let the menu paint before constructing the first 3D room on slower phones.
+requestAnimationFrame(()=>requestAnimationFrame(boot));
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;$('#install').hidden=false;});$('#install').addEventListener('click',async()=>{if(deferredInstall){await deferredInstall.prompt();deferredInstall=null;$('#install').hidden=true;}});addEventListener('appinstalled',()=>$('#install').hidden=true);
 if('serviceWorker'in navigator){addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(e=>console.warn('Offline cache unavailable',e)));}
