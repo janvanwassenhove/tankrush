@@ -1,4 +1,4 @@
-import {getHabitat,SPECIES,constrainToTank} from './habitats.js?v=7';
+import {getHabitat,SPECIES,constrainToTank} from './habitats.js?v=8';
 // Pure deterministic simulation: no DOM or rendering dependencies.
 export const TAU = Math.PI * 2;
 export const HABITAT = {halfWidth:108,halfDepth:78,trackX:82,trackZ:58,roadHalfWidth:7};
