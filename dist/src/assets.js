@@ -1,7 +1,7 @@
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {createVehicle} from './models.js?v=11';
-import {createCreature,colorSpecies} from './creatures.js?v=11';
-import {getHabitat,SPECIES} from './habitats.js?v=11';
+import {createVehicle} from './models.js?v=12';
+import {createCreature,colorSpecies} from './creatures.js?v=12';
+import {getHabitat,SPECIES} from './habitats.js?v=12';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 const cache=new Map(),loading=new Map(),preparedAnimals=new Map();
 export async function preloadModels(key='aquarium'){

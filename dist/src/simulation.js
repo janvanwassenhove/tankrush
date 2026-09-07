@@ -1,4 +1,4 @@
-import {getHabitat,SPECIES,constrainToTank} from './habitats.js?v=11';
+import {getHabitat,SPECIES,constrainToTank} from './habitats.js?v=12';
 // Pure deterministic simulation: no DOM or rendering dependencies.
 export const TAU = Math.PI * 2;
 export const HABITAT = {halfWidth:108,halfDepth:78,trackX:82,trackZ:58,roadHalfWidth:7};
@@ -31,23 +31,23 @@ export function terrainHeight(x,z,key='terrarium'){
 export function pathPoint(key,t,time=0){
  const h=getHabitat(key),a=t*TAU,c=Math.cos(a),s=Math.sin(a);let nx=c,nz=s;
  switch(h.course){
-  case 'river': nx=c*.88+Math.sin(2*a)*.12;nz=s*.78+Math.sin(3*a+.4)*.2;break;
-  case 'hourglass': {const r=.76+.2*Math.cos(2*a);nx=c*r;nz=s*(1.03-.08*Math.cos(2*a));break;}
-  case 'chicane': nx=c*.94+Math.sin(2*a)*.05;nz=s*.72+Math.sin(3*a)*.23;break;
-  case 'kidney': {const r=.8+.17*Math.cos(a-.7);nx=c*r+Math.sin(2*a)*.06;nz=s*r;break;}
+  case 'river': nx=c*.76+Math.sin(2*a+.4)*.2;nz=s*.57+Math.sin(3*a-.3)*.3;break;
+  case 'hourglass': {const r=.68+.28*Math.cos(2*a);nx=c*r;nz=s*(1.02-.16*Math.cos(2*a));break;}
+  case 'chicane': nx=c*.82+Math.sin(2*a)*.15+Math.sin(4*a)*.06;nz=s*.52+Math.sin(3*a)*.34;break;
+  case 'kidney': {const r=.7+.25*Math.cos(a-.7);nx=c*r+Math.sin(2*a)*.12;nz=s*r*.93;break;}
   case 'orbit': nx=c;nz=s;break;
-  case 'mesa': nx=Math.sign(c)*Math.abs(c)**.48*.9;nz=Math.sign(s)*Math.abs(s)**.48*.86;break;
-  case 'cactus': nx=c*.98+Math.cos(2*a)*.12;nz=s*.98+Math.sin(3*a+.5)*.1;break;
-  case 'clover': {const r=.96+.12*Math.cos(3*a);nx=c*r;nz=s*r;break;}
-  case 'cascade': nx=c*.95+Math.sin(2*a)*.11;nz=s*.93+Math.sin(2*a+.8)*.12;break;
-  case 'spiral': {const r=.98+.12*Math.sin(a);nx=c*r;nz=s*r+Math.sin(2*a)*.06;break;}
+  case 'mesa': nx=Math.sign(c)*Math.abs(c)**.3*.86;nz=Math.sign(s)*Math.abs(s)**.3*.78;break;
+  case 'cactus': nx=c*.76+Math.cos(2*a)*.22;nz=s*.72+Math.sin(3*a+.5)*.25;break;
+  case 'clover': {const r=.72+.25*Math.cos(3*a);nx=c*r;nz=s*r;break;}
+  case 'cascade': {const r=.7+.18*Math.cos(3*a+.5);nx=c*r+Math.sin(2*a)*.15;nz=s*r+Math.sin(a)*.12;break;}
+  case 'spiral': {const r=.88+.22*Math.sin(a);nx=c*r+.18*Math.cos(2*a);nz=s*r+Math.sin(2*a)*.2;break;}
   default: nx=c;nz=s;
  }
  const x=nx*h.trackX,z=nz*h.trackZ;
  return {x,y:h.kind==='aquarium'?h.depth+Math.sin(2*a+h.phase)*h.swing+Math.sin(time*.42+a)*1.2:terrainHeight(x,z,h)+1.3,z};
 }
 export function pathHeading(key,t){const a=pathPoint(key,t),b=pathPoint(key,t+.001);return Math.atan2(b.x-a.x,b.z-a.z);}
-function gateParameters(h){const samples=[{t:0,length:0}];let length=0;for(let i=1;i<=360;i++){length+=distance(pathPoint(h,(i-1)/360),pathPoint(h,i/360));samples.push({t:i/360,length});}const count=length>430?12:10;return Array.from({length:count},(_,i)=>{const target=i/count*length,j=Math.max(1,samples.findIndex(s=>s.length>=target)),a=samples[j-1],b=samples[j];return a.t+(b.t-a.t)*(target-a.length)/(b.length-a.length);});}
+function gateParameters(h){const samples=[{t:0,length:0}];let length=0;for(let i=1;i<=720;i++){length+=distance(pathPoint(h,(i-1)/720),pathPoint(h,i/720));samples.push({t:i/720,length});}const create=count=>Array.from({length:count},(_,i)=>{const target=i/count*length,j=Math.max(1,samples.findIndex(s=>s.length>=target)),a=samples[j-1],b=samples[j];return a.t+(b.t-a.t)*(target-a.length)/(b.length-a.length);});let count=length>430?12:10,points=create(count);while(count>7&&points.some((t,i)=>distance(pathPoint(h,t),pathPoint(h,points[(i+1)%count]))<30)){points=create(--count);}return points;}
 export function currentAt(p,t,key='aquarium'){const h=getHabitat(key);if(h.theme==='jelly'){const d=Math.hypot(p.x,p.z)||1;return {x:-p.z/d*1.5,y:Math.sin(t*.35+p.x*.03)*.3,z:p.x/d*1.5};}const force=h.theme==='rift'?1.2:h.theme==='blackwater'?.7:1;return {x:Math.sin(t*.5+p.z*.08)*1.2*force,y:Math.sin(t*.4+p.x*.07)*.35,z:Math.cos(t*.43+p.x*.065)*.9*force};}
 export function surfaceAt(x,z,key='terrarium'){const h=getHabitat(key);if(waterAt(x,z,h))return 'stream';if((h.relief||[]).some(m=>Math.hypot((x-m.x)/m.rx,(z-m.z)/m.rz)<.85))return 'rock';if(h.theme==='desert')return z<10?'sand':'rock';if(h.theme==='outback'){if(x< -h.trackX*.65)return 'rock';return z<0?'sand':'soil';}return x>h.trackX*.5?'plant':'soil';}
 export function segmentDistance(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z;const k=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy+(p.z-a.z)*dz)/(dx*dx+dy*dy+dz*dz||1),0,1);return Math.hypot(p.x-a.x-k*dx,p.y-a.y-k*dy,p.z-a.z-k*dz);}

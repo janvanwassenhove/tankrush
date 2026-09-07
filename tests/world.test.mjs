@@ -35,4 +35,5 @@ test('quality settings retain antialias-independent shadows and model detail',()
  const v=Object.create(RaceScene.prototype);v.renderer={setPixelRatio(n){ratio=n;},shadowMap:{enabled:false}};v.resize=()=>{};
  v.setQuality('high');assert.equal(ratio,2);assert.equal(v.renderer.shadowMap.enabled,true);
  v.setQuality('balanced');assert.equal(ratio,1.25);assert.equal(v.renderer.shadowMap.enabled,true);
+ v.setQuality('performance');assert.equal(ratio,1);assert.equal(v.renderer.shadowMap.enabled,false);
 });

@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import {pathPoint,pathHeading,random,wrap,surfaceAt} from './simulation.js?v=11';
-import {constrainToTank} from './habitats.js?v=11';
-import {buildDecor} from './decor.js?v=11';
-import {animateModel} from './models.js?v=11';
-import {vehicleModel,animalModel} from './assets.js?v=11';
+import {pathPoint,pathHeading,random,wrap,surfaceAt} from './simulation.js?v=12';
+import {constrainToTank} from './habitats.js?v=12';
+import {buildDecor} from './decor.js?v=12';
+import {animateModel} from './models.js?v=12';
+import {vehicleModel,animalModel} from './assets.js?v=12';
 const up=new THREE.Vector3(0,1,0);
 const road=7;
 export function racerPose(r,alpha=1){const p=r.previous||r,pose={};for(const axis of ['x','y','z'])pose[axis]=p[axis]+(r[axis]-p[axis])*alpha;for(const angle of ['yaw','pitch','roll'])pose[angle]=r[angle]+wrap((p[angle]??r[angle])-r[angle])*(1-alpha);return pose;}
@@ -12,7 +12,7 @@ function mesh(geometry,material,x=0,y=0,z=0){const m=new THREE.Mesh(geometry,mat
 function rod(a,b,r,material){const av=new THREE.Vector3(...a),bv=new THREE.Vector3(...b),d=bv.clone().sub(av);const m=mesh(new THREE.CylinderGeometry(r,r,d.length(),7),material);m.position.copy(av).add(bv).multiplyScalar(.5);m.quaternion.setFromUnitVectors(up,d.normalize());return m;}
 export class RaceScene{
  constructor(canvas){this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,2));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.18;this.scene=new THREE.Scene();this.camera=new THREE.PerspectiveCamera(48,1,.1,1400);this.camera.position.set(69,45,77);this.target=new THREE.Vector3();this.effects=new Map();this.racers=[];this.animals=[];this.gates=[];this.plants=[];this.time=0;this.resize();window.addEventListener('resize',()=>this.resize());}
- setQuality(quality='high'){this.renderer.setPixelRatio(Math.min(devicePixelRatio,quality==='high'?2:1.25));this.renderer.shadowMap.enabled=true;this.resize();}
+ setQuality(quality='high'){const scale={high:2,balanced:1.25,performance:1}[quality]||2;this.renderer.setPixelRatio(Math.min(devicePixelRatio,scale));this.renderer.shadowMap.enabled=quality!=='performance';this.resize();}
  resize(){this.renderer.setSize(innerWidth,innerHeight,false);this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();}
  clear(){this.scene.traverse(o=>{if(o.userData.sharedResources)return;o.shadow?.dispose();o.geometry?.dispose();if(o.material){for(const m of Array.isArray(o.material)?o.material:[o.material])m.dispose();}});this.scene.clear();this.effects.clear();this.racers=[];this.animals=[];this.gates=[];this.plants=[];this.routeLine=null;}
  setWorld(sim){

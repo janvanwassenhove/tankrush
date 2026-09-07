@@ -77,3 +77,9 @@ The service worker installs only the menu shell; 3D modules cache on use. Offlin
 ### Terrarium relief and shallow water
 
 All five terrarium circuits cross smooth raised terrain. Outback and Sonora stay dry; Madagascar and New Caledonia gain shallow pools, while Costa Rica has connected waterfall pools. Pool surfaces and driving friction share the same ellipse definitions and carved beds. Buggies pitch and bank with terrain and lose speed/grip in streams. Water stays shallow enough for the buggy body to remain above the surface. Some reptiles start on rocky hills and frogs near pool edges. Tests cover course grades, elevation range, water/bed agreement, water slowdown and AI race completion.
+
+### Languages, controls and course silhouettes
+
+The interface supports English, French, Dutch and German, remembers the selection locally, and localizes habitat regions, shapes and descriptions. Non-Dutch species lists use scientific names. The settings dialog also persists remappable keyboard actions and High (2×), Balanced (1.25×), or Performance (1×, no shadows) render modes, with a fullscreen action. Reassigning an occupied key swaps the two actions to avoid duplicate bindings.
+
+Course equations now produce deliberately different silhouettes: meander, hourglass, chicane, kidney, orbit, rounded rectangle, asymmetric cactus, clover, cascade and fern-spire. Gate count adapts to tight bends so adjacent checkpoints retain at least 30 world units of reaction space.

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import {tankOutline,constrainToTank} from './habitats.js?v=11';
-import {surfaceAt} from './simulation.js?v=11';
+import {tankOutline,constrainToTank} from './habitats.js?v=12';
+import {surfaceAt} from './simulation.js?v=12';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 const up=new THREE.Vector3(0,1,0);
 const material=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.8,...extra});
