@@ -1,4 +1,4 @@
-import {getHabitat,SPECIES,constrainToTank} from './habitats.js?v=10';
+import {getHabitat,SPECIES,constrainToTank} from './habitats.js?v=11';
 // Pure deterministic simulation: no DOM or rendering dependencies.
 export const TAU = Math.PI * 2;
 export const HABITAT = {halfWidth:108,halfDepth:78,trackX:82,trackZ:58,roadHalfWidth:7};
@@ -11,12 +11,22 @@ export const WORLD = {
   terrarium: { title:'Wildgroei', water:false, gates:12, radius:7, top:22, speed:20, accel:15, turn:1.45, colors:[0xf8c648,0xf47981,0x93b8ff,0xd6f48b] }
 };
 export function random(seed=9173){return ()=>{seed|=0;seed=seed+0x6d2b79f5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
+export function waterAt(x,z,key='terrarium'){
+ const h=getHabitat(key);let result=null;
+ for(const pool of h.pools||[]){const r2=((x-pool.x)/pool.rx)**2+((z-pool.z)/pool.rz)**2;if(r2<1){const depth=pool.depth*(1-r2)**2;if(!result||depth>result.depth)result={level:pool.level,depth};}}
+ return result;
+}
 export function terrainHeight(x,z,key='terrarium'){
  const h=getHabitat(key);if(h.theme==='jelly')return .4;
  const nx=x/h.halfWidth,nz=z/h.halfDepth;
  const wave=1.1+Math.sin(nx*4.3+h.phase)*1.2+Math.cos(nz*4.1)*.7+Math.sin((nx+nz)*3)*.5;
  const mound=Math.exp(-((nx+.4)**2+(nz-.1)**2)*16)*(h.theme==='outback'?5:2.5);
- return Math.max(.3,wave*(h.theme==='desert'?1.7:1)+mound);
+ let height=Math.max(.3,wave*(h.theme==='desert'?1.7:1)+mound);
+ for(const hill of h.relief||[])height+=hill.height*Math.exp(-(((x-hill.x)/hill.rx)**2+((z-hill.z)/hill.rz)**2)*1.8);
+ // Smooth banks lead into a shared shallow bed, including overlapping stream pools.
+ let influence=0,depth=0,level=0;
+ for(const pool of h.pools||[]){const radius=Math.hypot((x-pool.x)/pool.rx,(z-pool.z)/pool.rz);if(radius<1.6){const k=clamp((radius-1)/.6,0,1),weight=1-k*k*(3-2*k);if(weight>influence){influence=weight;level=pool.level;}depth=Math.max(depth,pool.depth*Math.max(0,1-radius*radius)**2);}}
+ return height*(1-influence)+(level-depth)*influence;
 }
 export function pathPoint(key,t,time=0){
  const h=getHabitat(key),a=t*TAU,c=Math.cos(a),s=Math.sin(a);let nx=c,nz=s;
@@ -39,15 +49,17 @@ export function pathPoint(key,t,time=0){
 export function pathHeading(key,t){const a=pathPoint(key,t),b=pathPoint(key,t+.001);return Math.atan2(b.x-a.x,b.z-a.z);}
 function gateParameters(h){const samples=[{t:0,length:0}];let length=0;for(let i=1;i<=360;i++){length+=distance(pathPoint(h,(i-1)/360),pathPoint(h,i/360));samples.push({t:i/360,length});}const count=length>430?12:10;return Array.from({length:count},(_,i)=>{const target=i/count*length,j=Math.max(1,samples.findIndex(s=>s.length>=target)),a=samples[j-1],b=samples[j];return a.t+(b.t-a.t)*(target-a.length)/(b.length-a.length);});}
 export function currentAt(p,t,key='aquarium'){const h=getHabitat(key);if(h.theme==='jelly'){const d=Math.hypot(p.x,p.z)||1;return {x:-p.z/d*1.5,y:Math.sin(t*.35+p.x*.03)*.3,z:p.x/d*1.5};}const force=h.theme==='rift'?1.2:h.theme==='blackwater'?.7:1;return {x:Math.sin(t*.5+p.z*.08)*1.2*force,y:Math.sin(t*.4+p.x*.07)*.35,z:Math.cos(t*.43+p.x*.065)*.9*force};}
-export function surfaceAt(x,z,key='terrarium'){const h=getHabitat(key);if(h.waterfall&&Math.hypot(x-h.waterfall.x,z-h.waterfall.z)<h.waterfall.pool)return 'stream';if(h.theme==='desert')return z<10?'sand':'rock';if(h.theme==='outback'){if(x< -h.trackX*.65)return 'rock';return z<0?'sand':'soil';}return x>h.trackX*.5?'plant':'soil';}
+export function surfaceAt(x,z,key='terrarium'){const h=getHabitat(key);if(waterAt(x,z,h))return 'stream';if((h.relief||[]).some(m=>Math.hypot((x-m.x)/m.rx,(z-m.z)/m.rz)<.85))return 'rock';if(h.theme==='desert')return z<10?'sand':'rock';if(h.theme==='outback'){if(x< -h.trackX*.65)return 'rock';return z<0?'sand':'soil';}return x>h.trackX*.5?'plant':'soil';}
 export function segmentDistance(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z;const k=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy+(p.z-a.z)*dz)/(dx*dx+dy*dy+dz*dz||1),0,1);return Math.hypot(p.x-a.x-k*dx,p.y-a.y-k*dy,p.z-a.z-k*dz);}
 export class Simulation {
  constructor(mode='aquarium',seed=43){this.habitat=getHabitat(mode);this.mode=this.habitat.kind;this.config={...WORLD[this.mode],title:this.habitat.name,top:(this.habitat.waterLevel||this.habitat.height)-5};this.gateParameters=gateParameters(this.habitat);this.config.gates=this.gateParameters.length;this.rocks=[];const scenery=random(this.habitat.seed+5);for(let i=0;i<Math.ceil(this.habitat.rocks/3);i++){const a=scenery()*TAU,k=.25+scenery()*.35;this.rocks.push([Math.cos(a)*this.habitat.trackX*k,Math.sin(a)*this.habitat.trackZ*k,3+scenery()*6]);}this.rng=random(seed);this.time=0;this.elapsed=0;this.phase='menu';this.countdown=3;this.events=[];this.food=[];this.waste=[];this.tongues=[];this.racers=[];this.animals=[];this.totalLaps=3;this.nextId=0;this.createRacers();this.createAnimals();}
- createRacers(){for(let i=0;i<4;i++){const t=-.026-Math.floor(i/2)*.012,p=pathPoint(this.habitat,t),h=pathHeading(this.habitat,t),side=i%2?1.6:-1.6;p.x+=Math.cos(h)*side;p.z-=Math.sin(h)*side;this.racers.push({id:i,name:['Jij','Gilly','Pebble','Moss'][i],...p,previous:{...p},vx:0,vy:0,vz:0,yaw:h,pitch:0,roll:0,steering:0,speed:0,gate:0,passed:0,lap:1,food:3,boost:100,boosting:false,slow:0,immune:0,foodCooldown:0,finished:false,finishTime:null,grounded:true,surface:'soil'});}}
+ createRacers(){for(let i=0;i<4;i++){const t=-.026-Math.floor(i/2)*.012,p=pathPoint(this.habitat,t),h=pathHeading(this.habitat,t),side=i%2?1.6:-1.6;p.x+=Math.cos(h)*side;p.z-=Math.sin(h)*side;if(!this.config.water)p.y=this.groundAt(p.x,p.z)+1.3;this.racers.push({id:i,name:['Jij','Gilly','Pebble','Moss'][i],...p,previous:{...p},vx:0,vy:0,vz:0,yaw:h,pitch:0,roll:0,steering:0,speed:0,gate:0,passed:0,lap:1,food:3,boost:100,boosting:false,slow:0,immune:0,foodCooldown:0,finished:false,finishTime:null,grounded:true,surface:'soil'});}}
  groundAt(x,z){return terrainHeight(x,z,this.habitat);}
  createAnimals(){const count=this.habitat.animalCount||(this.config.water?16:8);for(let i=0;i<count;i++){
   const speciesId=this.habitat.roster[i%this.habitat.roster.length],profile=SPECIES[speciesId],t=(i+.45)/count,p=pathPoint(this.habitat,t),h=pathHeading(this.habitat,t);
   p.x-=Math.cos(h)*(3+i%3);p.z+=Math.sin(h)*(3+i%3);
+  if(!this.config.water&&profile.behavior==='walk'&&this.habitat.relief?.length&&i%2===0){const hill=this.habitat.relief[i%this.habitat.relief.length];p.x=hill.x+3;p.z=hill.z+2;}
+  if(profile.behavior==='hop'&&this.habitat.pools?.length){const pool=this.habitat.pools[i%this.habitat.pools.length];p.x=pool.x+pool.rx*.85;p.z=pool.z;}
   if(!this.config.water)p.y=this.groundAt(p.x,p.z)+(profile.behavior==='climb'?7+(i%3)*3:.8);
   this.animals.push({id:i,speciesId,profile,type:profile.model,...p,home:{...p},yaw:0,target:null,phase:i*1.8,radius:profile.radius,dropAt:7+i*2.7,tongueAt:5,body:[]});
  }}
@@ -86,11 +98,12 @@ export class Simulation {
   // Front is +Z: a positive yaw turns screen-left in the chase camera.
   // Positive steer always means vehicle-right, with the usual reversal in reverse gear.
   r.yaw-=steer*this.config.turn*dt*clamp(Math.abs(r.speed)/5,0,1)/(1+Math.max(0,Math.abs(r.speed)/this.config.speed-1)*.6)*(r.speed<0?-1:1);
-  const targetX=Math.sin(r.yaw)*r.speed,targetZ=Math.cos(r.yaw)*r.speed,grip=water?3.8:r.surface==='sand'?5:8;
+  const targetX=Math.sin(r.yaw)*r.speed,targetZ=Math.cos(r.yaw)*r.speed,grip=water?3.8:r.surface==='stream'?3.8:r.surface==='sand'?5:8;
   r.vx+=(targetX-r.vx)*(1-Math.exp(-dt*grip));r.vz+=(targetZ-r.vz)*(1-Math.exp(-dt*grip));
   if(water){const current=currentAt(r,this.time,this.habitat);r.vy+=((input.vertical||0)*8-r.vy)*(1-Math.exp(-dt*2));r.x+=(r.vx+current.x)*dt;r.z+=(r.vz+current.z)*dt;r.y+=(r.vy+current.y)*dt;r.pitch+=(-Math.atan2(r.vy,Math.max(2,Math.abs(r.speed)))-r.pitch)*dt*4;r.y=clamp(r.y,this.groundAt(r.x,r.z)+2,this.config.top);}
   else{r.x+=r.vx*dt;r.z+=r.vz*dt;const floor=this.groundAt(r.x,r.z)+1.1;r.vy-=20*dt;r.y+=r.vy*dt;if(r.y<=floor){const newVy=(floor-r.previous.y)/dt;r.y=floor;r.vy=clamp(newVy,-8,9);r.grounded=true;}else r.grounded=false;const ahead=this.groundAt(r.x+Math.sin(r.yaw)*1.8,r.z+Math.cos(r.yaw)*1.8);r.pitch+=(Math.atan2(this.groundAt(r.x,r.z)-ahead,1.8)-r.pitch)*Math.min(1,dt*10);}
-  r.roll+=(steer*Math.min(Math.abs(r.speed)*.012,.22)-r.roll)*dt*6;
+  const bank=water?0:Math.atan2(this.groundAt(r.x+Math.cos(r.yaw)*1.3,r.z-Math.sin(r.yaw)*1.3)-this.groundAt(r.x-Math.cos(r.yaw)*1.3,r.z+Math.sin(r.yaw)*1.3),2.6);
+  r.roll+=(bank+steer*Math.min(Math.abs(r.speed)*.012,.22)-r.roll)*dt*6;
   const boundary=constrainToTank(this.habitat,r.x,r.z),bx=boundary.x,bz=boundary.z;if(bx!==r.x||bz!==r.z){r.x=bx;r.z=bz;r.speed*=.8;r.vx*=.6;r.vz*=.6;if(r.id===0&&r.immune<=0){this.emit('Glaswand! Stuur terug naar de poort.');r.immune=1;}}
  }
  checkGate(r){const p=this.gatePoint(r.gate);if(segmentDistance(p,r.previous,r)>this.config.radius)return;const heading=pathHeading(this.habitat,this.gateParameter(r.gate)),dx=r.x-r.previous.x,dz=r.z-r.previous.z;if(dx*Math.sin(heading)+dz*Math.cos(heading)<=0)return;r.gate=(r.gate+1)%this.config.gates;r.passed++;if(r.passed>1&&(r.passed-1)%this.config.gates===0){r.lap++;r.food=Math.min(5,r.food+2);if(r.lap>this.totalLaps){r.finished=true;r.finishTime=this.elapsed;if(r.id===0)this.emit('FINISH!');}else if(!r.id)this.emit(`Ronde ${r.lap} / ${this.totalLaps} · +2 porties voer`,'lap');}else if(!r.id&&r.passed%3===0)this.emit(`Checkpoint ${r.gate+1} · hou koers!`);}

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import {tankOutline,constrainToTank} from './habitats.js?v=10';
+import {tankOutline,constrainToTank} from './habitats.js?v=11';
+import {surfaceAt} from './simulation.js?v=11';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 const up=new THREE.Vector3(0,1,0);
 const material=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.8,...extra});
@@ -73,7 +74,14 @@ export function buildDecor(scene,sim,rng){
  furnishRoom(room,h,w,d,rng);
  const outline=tankOutline(h),waterfalls=[],plants=[],shellMaterials=[glass];
  add(shell,surface(h,()=>-1),dark,[0,0,0],[1,1,1],'Tank base');
- const ground=add(scene,surface(h,(x,z)=>sim.groundAt(x,z)),material(p.ground),[0,0,0],[1,1,1],'Substrate');
+ const groundGeo=surface(h,(x,z)=>sim.groundAt(x,z));
+ if(!water){const pos=groundGeo.attributes.position,colors=[],soil=new THREE.Color(p.ground),rock=new THREE.Color(p.rock),wet=new THREE.Color(0x475e50);for(let i=0;i<pos.count;i++){const kind=surfaceAt(pos.getX(i),pos.getZ(i),h),c=kind==='stream'?wet:kind==='rock'?rock:soil;colors.push(c.r,c.g,c.b);}groundGeo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));}
+ const ground=add(scene,groundGeo,material(water?p.ground:0xffffff,{vertexColors:!water}),[0,0,0],[1,1,1],'Substrate');
+ const pools=[];
+ for(const f of h.pools||[]){const m=add(scene,new THREE.CircleGeometry(1,64),material(0x60b9b7,{transparent:true,opacity:.62,roughness:.13,metalness:.18,depthWrite:false}),[f.x,f.level+.03,f.z],[f.rx,f.rz,1],'Shallow pool');m.rotation.x=-Math.PI/2;m.castShadow=false;pools.push(m);
+  const ripples=new THREE.Group();ripples.position.set(f.x,f.level+.06,f.z);scene.add(ripples);for(let i=0;i<3;i++){const r=add(ripples,new THREE.RingGeometry(.32+i*.21,.33+i*.21,48),material(0xc2fff0,{transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}),[0,0,0],[f.rx,f.rz,1],'Pool ripple');r.rotation.x=-Math.PI/2;r.castShadow=false;}pools.push(ripples);
+ }
+
  for(let i=0;i<outline.length;i++){
   const a=outline[i],b=outline[(i+1)%outline.length],length=Math.hypot(b.x-a.x,b.z-a.z),angle=Math.atan2(b.z-a.z,b.x-a.x);
   const pane=add(shell,new THREE.PlaneGeometry(length,top),glass,[(a.x+b.x)/2,top/2,(a.z+b.z)/2],[1,1,1],'Glass wall');pane.rotation.y=-angle;
@@ -150,11 +158,11 @@ export function buildDecor(scene,sim,rng){
  }
  if(h.waterfall){const f=h.waterfall;
   for(let i=0;i<6;i++)add(scene,rockGeo,rockMat,[f.x-3,6+i*12,f.z-8],[10-i*.6,10,7],'Waterfall rock wall');
-  const sheet=slab(scene,[7,f.height,.4],material(0x96dadd,{transparent:true,opacity:.48,roughness:.2,side:THREE.DoubleSide}),[f.x,f.height/2+3,f.z-1],'Waterfall');waterfalls.push(sheet);
-  const pool=add(scene,new THREE.CircleGeometry(f.pool,40),material(0x519998,{transparent:true,opacity:.75,roughness:.12}),[f.x,sim.groundAt(f.x,f.z)+.22,f.z],[1,1,1],'Shallow stream crossing');pool.rotation.x=-Math.PI/2;
+  const sheet=slab(scene,[7,f.height,.4],material(0x96dadd,{transparent:true,opacity:.48,roughness:.2,side:THREE.DoubleSide}),[f.x,f.height/2+3,f.z],'Waterfall');waterfalls.push(sheet);
+
   const coords=[];for(let i=0;i<100;i++)coords.push(f.x+(rng()-.5)*7,rng()*f.height+3,f.z+(rng()-.5)*2);
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(coords,3));const drops=new THREE.Points(g,new THREE.PointsMaterial({color:0xddfff5,size:.6,transparent:true,opacity:.8}));drops.userData.fall=f;scene.add(drops);waterfalls.push(drops);
  }
  plants.forEach(({g})=>mergeStatic(g));mergeStatic(room);mergeStatic(shell);mergeStatic(scene);
- return {plants,waterfalls,shellMaterials,ground,shell,room};
+ return {plants,waterfalls,shellMaterials,ground,shell,room,pools};
 }

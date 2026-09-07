@@ -73,3 +73,7 @@ Three.js is MIT-licensed; see `dist/vendor/three/LICENSE`. Source/model licensin
 The menu progressively initializes the original live 3D room after the controls appear. A single shared renderer initialization prevents duplicate startup work. Menu animation runs at 30 fps; races use the display refresh rate. The selected scene is reused when starting or returning to the same habitat. All animals, room decor and soft shadows remain visible on mobile, with antialiasing enabled and resolution capped at 2×. The Beeld selector offers a lower 1.25× resolution while retaining shadows and model detail. Hidden tabs stop rendering.
 
 The service worker installs only the menu shell; 3D modules cache on use. Offline 3D requires loading the room online once on that device. Actual mobile GPU performance has not been measured. The previous offline WebP previews are retained as source assets but are no longer displayed.
+
+### Terrarium relief and shallow water
+
+All five terrarium circuits cross smooth raised terrain. Outback and Sonora stay dry; Madagascar and New Caledonia gain shallow pools, while Costa Rica has connected waterfall pools. Pool surfaces and driving friction share the same ellipse definitions and carved beds. Buggies pitch and bank with terrain and lose speed/grip in streams. Water stays shallow enough for the buggy body to remain above the surface. Some reptiles start on rocky hills and frogs near pool edges. Tests cover course grades, elevation range, water/bed agreement, water slowdown and AI race completion.

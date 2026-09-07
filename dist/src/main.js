@@ -1,6 +1,6 @@
-import {HABITATS,getHabitat,SPECIES} from './habitats.js?v=10';
-import {Simulation,pathPoint} from './simulation.js?v=10';
-import {bindJoystick} from './input.js?v=10';
+import {HABITATS,getHabitat,SPECIES} from './habitats.js?v=11';
+import {Simulation,pathPoint} from './simulation.js?v=11';
+import {bindJoystick} from './input.js?v=11';
 const $=s=>document.querySelector(s);
 const joystick=bindJoystick($('#joystick'));
 function clearControls(){keys.clear();touch.clear();joystick.reset();document.querySelectorAll('[data-control].active').forEach(b=>b.classList.remove('active'));}
@@ -14,7 +14,7 @@ const paint=()=>new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolv
 let viewPromise,previewTicket=0,previewPending=false;
 async function ensureView(){
  if(view)return;
- if(!viewPromise)viewPromise=import('./scene.js?v=10').then(({RaceScene})=>{view=new RaceScene($('#game'));view.setQuality($('#quality').value);}).catch(e=>{viewPromise=null;throw e;});
+ if(!viewPromise)viewPromise=import('./scene.js?v=11').then(({RaceScene})=>{view=new RaceScene($('#game'));view.setQuality($('#quality').value);}).catch(e=>{viewPromise=null;throw e;});
  await viewPromise;
 }
 function runFrames(){if(!frameStarted&&!document.hidden){frameStarted=true;last=0;requestAnimationFrame(frame);}}
