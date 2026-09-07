@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import {tankOutline,constrainToTank} from './habitats.js?v=12';
-import {surfaceAt} from './simulation.js?v=12';
+import {tankOutline,constrainToTank} from './habitats.js?v=13';
+import {surfaceAt} from './simulation.js?v=13';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 const up=new THREE.Vector3(0,1,0);
 const material=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.8,...extra});
@@ -72,11 +72,11 @@ export function buildDecor(scene,sim,rng){
  slab(room,[w*2+12,5,d*2+12],dark,[0,-4,0],'Cabinet top');
  for(const sign of [-1,1]){slab(room,[w-3,55,1.5],material(0x635246),[sign*w*.5,-39,d+5],'Cabinet door');slab(room,[1,10,2],metal,[sign*5,-35,d+7],'Door handle');}
  furnishRoom(room,h,w,d,rng);
- const outline=tankOutline(h),waterfalls=[],plants=[],shellMaterials=[glass];
+ const outline=tankOutline(h),waterfalls=[],aquaticEffects=[],plants=[],shellMaterials=[glass];
  add(shell,surface(h,()=>-1),dark,[0,0,0],[1,1,1],'Tank base');
  const groundGeo=surface(h,(x,z)=>sim.groundAt(x,z));
- if(!water){const pos=groundGeo.attributes.position,colors=[],soil=new THREE.Color(p.ground),rock=new THREE.Color(p.rock),wet=new THREE.Color(0x475e50);for(let i=0;i<pos.count;i++){const kind=surfaceAt(pos.getX(i),pos.getZ(i),h),c=kind==='stream'?wet:kind==='rock'?rock:soil;colors.push(c.r,c.g,c.b);}groundGeo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));}
- const ground=add(scene,groundGeo,material(water?p.ground:0xffffff,{vertexColors:!water}),[0,0,0],[1,1,1],'Substrate');
+ {const pos=groundGeo.attributes.position,colors=[],soil=new THREE.Color(p.ground),rock=new THREE.Color(p.rock),wet=new THREE.Color(0x475e50),sand=new THREE.Color(h.theme==='blackwater'?0xc2a96f:h.theme==='reef'?0xf1e9cc:p.ground);for(let i=0;i<pos.count;i++){let c;if(water){const height=Math.max(0,pos.getY(i)),mix=Math.min(.45,height/35);c=soil.clone().lerp(h.theme==='rift'?rock:sand,mix);}else{const kind=surfaceAt(pos.getX(i),pos.getZ(i),h);c=kind==='stream'?wet:kind==='rock'?rock:soil;}colors.push(c.r,c.g,c.b);}groundGeo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));}
+ const ground=add(scene,groundGeo,material(0xffffff,{vertexColors:true}),[0,0,0],[1,1,1],'Ecosystem substrate');
  const pools=[];
  for(const f of h.pools||[]){const m=add(scene,new THREE.CircleGeometry(1,64),material(0x60b9b7,{transparent:true,opacity:.62,roughness:.13,metalness:.18,depthWrite:false}),[f.x,f.level+.03,f.z],[f.rx,f.rz,1],'Shallow pool');m.rotation.x=-Math.PI/2;m.castShadow=false;pools.push(m);
   const ripples=new THREE.Group();ripples.position.set(f.x,f.level+.06,f.z);scene.add(ripples);for(let i=0;i<3;i++){const r=add(ripples,new THREE.RingGeometry(.32+i*.21,.33+i*.21,48),material(0xc2fff0,{transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}),[0,0,0],[f.rx,f.rz,1],'Pool ripple');r.rotation.x=-Math.PI/2;r.castShadow=false;}pools.push(ripples);
@@ -153,8 +153,32 @@ export function buildDecor(scene,sim,rng){
  for(const a of sim.animals.filter(a=>a.profile.behavior==='climb'))beam(scene,[a.home.x-4,sim.groundAt(a.home.x-4,a.home.z),a.home.z],[a.home.x+4,a.home.y-.6,a.home.z],.7,bark,'Animal perch');
  if(h.theme==='blackwater'||h.theme==='ferns')for(let i=0;i<65;i++){const x=(rng()-.5)*w*1.7,z=(rng()-.5)*d*1.7,leaf=add(scene,new THREE.SphereGeometry(1,5,3),material(i%2?0x82603c:0xa47b45),[x,sim.groundAt(x,z)+.1,z],[1.4,.08,3]);leaf.rotation.y=rng()*6;}
  if(h.theme==='reef'){
-  for(let i=0;i<24;i++)plant((rng()-.5)*h.trackX,(rng()-.5)*h.trackZ,6+rng()*14,'reef');
-  for(let i=0;i<3;i++){const x=(i-1)*22,z=8;for(let j=0;j<16;j++){const a=j*2.4,r=2+rng()*4;beam(scene,[x+Math.cos(a)*r,sim.groundAt(x,z),z+Math.sin(a)*r],[x+Math.cos(a)*r,5+rng()*4,z+Math.sin(a)*r],.35,material(0xbce6aa),'Anemone tentacle');}}
+  for(let i=0;i<38;i++)plant((rng()-.5)*h.trackX*1.7,(rng()-.5)*h.trackZ*1.65,6+rng()*17,'reef');
+  for(let i=0;i<5;i++){const x=(i-2)*21,z=i%2?18:-18;for(let j=0;j<16;j++){const a=j*2.4,r=2+rng()*4;beam(scene,[x+Math.cos(a)*r,sim.groundAt(x,z),z+Math.sin(a)*r],[x+Math.cos(a)*r,5+rng()*5,z+Math.sin(a)*r],.35,material(i%2?0xbce6aa:0xf3b6cf),'Anemone tentacle');}}
+  const coralColors=[0xff8c73,0xf6c85f,0x9d7bea,0x48b9b2,0xeaa1c4];
+  for(let i=0;i<18;i++){const x=(rng()-.5)*w*1.65,z=(rng()-.5)*d*1.55,y=sim.groundAt(x,z),c=material(coralColors[i%coralColors.length]);add(scene,new THREE.CylinderGeometry(1.4+rng(),2+rng(),5+rng()*9,9),c,[x,y+4,z],[1,1,1],'Reef sponge');if(i%3===0)add(scene,new THREE.TorusGeometry(3+rng()*2,.5,6,16),c,[x,y+8,z],[1,1,1],'Table coral').rotation.x=Math.PI/2;}
+  for(const sign of [-1,1]){const x=sign*47,z=sign*-22,y=sim.groundAt(x,z);beam(scene,[x-11,y,z],[x,y+15,z],5,rockMat,'Reef arch');beam(scene,[x,y+15,z],[x+12,y,z],5,rockMat,'Reef arch');}
+ }
+ if(h.theme==='blackwater'){
+  // Flooded-bank roots spread into the open water and frame the race line.
+  for(const sign of [-1,1])for(let i=0;i<7;i++){const x=sign*(w-10),z=-d+10+i*d*.27,y=sim.groundAt(x,z);beam(scene,[x,y+32,z],[x-sign*(18+rng()*20),y+4,z+(rng()-.5)*17],1.2+rng()*1.3,bark,'Flooded root');}
+  for(let i=0;i<20;i++){const x=(rng()-.5)*w*1.7,z=(rng()-.5)*d*1.55,y=sim.groundAt(x,z);add(scene,new THREE.CircleGeometry(2+rng()*3,9),material(i%2?0x6c8d3e:0x4f7435,{side:THREE.DoubleSide}),[x,y+.25,z],[1,.55,1],'Amazon sword rosette').rotation.x=-Math.PI/2;}
+ }
+ if(h.theme==='planted'){
+  // Low foreground carpet and layered moss stones make the planted cube feel full at every height.
+  const carpetGeo=new THREE.ConeGeometry(.28,2.8,4),carpetMat=material(0x65ad54);
+  for(let cluster=0;cluster<14;cluster++){const cx=(rng()-.5)*w*1.7,cz=(rng()-.5)*d*1.7;for(let i=0;i<9;i++){const x=cx+(rng()-.5)*12,z=cz+(rng()-.5)*12;add(scene,carpetGeo,carpetMat,[x,sim.groundAt(x,z)+1.3,z],[1,1,1],'Plant carpet');}}
+  for(let i=0;i<12;i++){const x=(rng()-.5)*w*1.55,z=(rng()-.5)*d*1.55,y=sim.groundAt(x,z),moss=add(scene,new THREE.IcosahedronGeometry(1,1),material(0x477b45),[x,y+2,z],[3+rng()*3,2+rng()*2,3+rng()*3],'Moss stone');moss.rotation.y=rng()*6;}
+ }
+ if(h.theme==='rift'){
+  // Tall side rock piles and caves echo a Lake Malawi mbuna rockscape while leaving the circuit readable.
+  for(const sign of [-1,1])for(let i=0;i<8;i++){const x=sign*(w-18-rng()*27),z=-d+10+i*d*.23,s=7+rng()*8;add(scene,rockGeo,rockMat,[x,sim.groundAt(x,z)+s*.7,z],[s*1.3,s,s*.9],'Rift rock wall').rotation.y=rng()*4;}
+  for(const x of [-76,0,76]){const z=d*.42,y=sim.groundAt(x,z);add(scene,new THREE.BoxGeometry(18,4,13),rockMat,[x,y+13,z],[1,1,1],'Cichlid cave roof');for(const sign of [-1,1])add(scene,rockGeo,rockMat,[x+sign*8,y+6,z],[5,8,6],'Cichlid cave pillar');}
+ }
+ if(h.theme==='jelly'){
+  const glow=material(p.accent,{emissive:p.accent,emissiveIntensity:1.1,transparent:true,opacity:.32,depthWrite:false});
+  for(const y of [28,65,102]){const ring=add(scene,new THREE.TorusGeometry(w*.68,.35,6,64),glow,[0,y,0],[1,1,d/w],'Kreisel current ring');ring.rotation.x=Math.PI/2;ring.userData.currentRing=true;aquaticEffects.push(ring);}
+  for(let column=0;column<4;column++){const coords=[],a=column*Math.PI/2;for(let i=0;i<34;i++){const r=42+Math.sin(i*.7)*5;coords.push(Math.cos(a+i*.08)*r,4+i*3.9,Math.sin(a+i*.08)*r);}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(coords,3));const bubbles=new THREE.Points(g,new THREE.PointsMaterial({color:0xd7ecff,size:.75,transparent:true,opacity:.6,depthWrite:false}));bubbles.userData.bubbles=true;scene.add(bubbles);aquaticEffects.push(bubbles);}
  }
  if(h.waterfall){const f=h.waterfall;
   for(let i=0;i<6;i++)add(scene,rockGeo,rockMat,[f.x-3,6+i*12,f.z-8],[10-i*.6,10,7],'Waterfall rock wall');
@@ -164,5 +188,5 @@ export function buildDecor(scene,sim,rng){
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(coords,3));const drops=new THREE.Points(g,new THREE.PointsMaterial({color:0xddfff5,size:.6,transparent:true,opacity:.8}));drops.userData.fall=f;scene.add(drops);waterfalls.push(drops);
  }
  plants.forEach(({g})=>mergeStatic(g));mergeStatic(room);mergeStatic(shell);mergeStatic(scene);
- return {plants,waterfalls,shellMaterials,ground,shell,room,pools};
+ return {plants,waterfalls,aquaticEffects,shellMaterials,ground,shell,room,pools};
 }

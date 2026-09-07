@@ -17,7 +17,14 @@ test('every habitat has its own course silhouette and aquariums contain visible 
  assert.equal(new Set(HABITATS.map(h=>h.course)).size,HABITATS.length);
  const signatures=HABITATS.map(h=>Array.from({length:16},(_,i)=>{const p=pathPoint(h,i/16);return `${(p.x/h.trackX).toFixed(2)},${(p.z/h.trackZ).toFixed(2)}`;}).join('|'));
  assert.equal(new Set(signatures).size,HABITATS.length);
- for(const h of HABITATS.filter(h=>h.kind==='aquarium'))assert.ok(h.animalCount>=16,h.id);
+ for(const h of HABITATS.filter(h=>h.kind==='aquarium'))assert.ok(h.animalCount>=24,h.id);
+});
+test('aquariums define ecosystem-specific water and aquascapes',()=>{
+ const tanks=HABITATS.filter(h=>h.kind==='aquarium');
+ assert.equal(tanks.filter(h=>h.waterType==='freshwater').length,3);
+ assert.equal(tanks.filter(h=>h.waterType==='saltwater').length,2);
+ assert.equal(new Set(tanks.map(h=>h.aquascape)).size,5);
+ for(const h of tanks){assert.ok(h.aquascape);if(h.theme!=='jelly')assert.ok(h.relief?.length>=2,`${h.id} needs underwater slopes`);}
 });
 test('tank outlines are clockwise convex polygons and boundary projection works for every shape',()=>{
  for(const h of HABITATS){const p=tankOutline(h);assert.ok(p.length>=4);let sign=0;for(let i=0;i<p.length;i++){const a=p[i],b=p[(i+1)%p.length],c=p[(i+2)%p.length],cross=(b.x-a.x)*(c.z-b.z)-(b.z-a.z)*(c.x-b.x);if(Math.abs(cross)>1e-8){if(!sign)sign=Math.sign(cross);assert.equal(Math.sign(cross),sign,h.id);}}

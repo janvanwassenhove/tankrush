@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import {pathPoint,pathHeading,random,wrap,surfaceAt} from './simulation.js?v=12';
-import {constrainToTank} from './habitats.js?v=12';
-import {buildDecor} from './decor.js?v=12';
-import {animateModel} from './models.js?v=12';
-import {vehicleModel,animalModel} from './assets.js?v=12';
+import {pathPoint,pathHeading,random,wrap,surfaceAt} from './simulation.js?v=13';
+import {constrainToTank} from './habitats.js?v=13';
+import {buildDecor} from './decor.js?v=13';
+import {animateModel} from './models.js?v=13';
+import {vehicleModel,animalModel} from './assets.js?v=13';
 const up=new THREE.Vector3(0,1,0);
 const road=7;
 export function racerPose(r,alpha=1){const p=r.previous||r,pose={};for(const axis of ['x','y','z'])pose[axis]=p[axis]+(r[axis]-p[axis])*alpha;for(const angle of ['yaw','pitch','roll'])pose[angle]=r[angle]+wrap((p[angle]??r[angle])-r[angle])*(1-alpha);return pose;}
@@ -20,7 +20,7 @@ export class RaceScene{
   this.scene.background=new THREE.Color(0x202a30);this.scene.fog=new THREE.FogExp2(p.water,.001);
   this.scene.add(new THREE.HemisphereLight(p.light,0x38412e,2.4));const sun=new THREE.DirectionalLight(p.light,3.1);sun.position.set(-h.halfWidth*.3,h.height+35,15);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-h.halfWidth-15,right:h.halfWidth+15,top:h.halfDepth+15,bottom:-h.halfDepth-15,near:1,far:h.height+180});sun.shadow.bias=-.0005;sun.shadow.normalBias=.12;this.scene.add(sun);
   const fill=new THREE.DirectionalLight(p.accent,.75);fill.position.set(40,h.height*.7,40);this.scene.add(fill);
-  const decor=buildDecor(this.scene,sim,rng);this.plants=decor.plants;this.pools=decor.pools;this.waterfalls=decor.waterfalls;this.shellMaterials=decor.shellMaterials;this.tankShell=decor.shell;this.room=decor.room;this.room.visible=true;
+  const decor=buildDecor(this.scene,sim,rng);this.plants=decor.plants;this.pools=decor.pools;this.waterfalls=decor.waterfalls;this.aquaticEffects=decor.aquaticEffects;this.shellMaterials=decor.shellMaterials;this.tankShell=decor.shell;this.room=decor.room;this.room.visible=true;
   this.createRoute(sim);this.createParticles(rng);
   sim.racers.forEach(r=>{const g=vehicleModel(sim.mode,sim.config.colors[r.id]);this.racers.push(g);this.scene.add(g);});
   this.animalIndices=[];sim.animals.forEach((a,i)=>{const g=animalModel(a.speciesId);this.animalIndices.push(i);this.animals.push(g);this.scene.add(g);});
@@ -38,6 +38,7 @@ export class RaceScene{
   for(const {g,phase} of this.plants){g.rotation.z=Math.sin(now*.6+phase)*.035;g.rotation.x=Math.cos(now*.4+phase)*.025;}
   for(const pool of this.pools||[]){if(pool.isGroup){const k=.98+Math.sin(now*1.4)*.02;pool.scale.set(k,1,k);}else pool.material.opacity=.6+Math.sin(now*1.1)*.04;}
   for(const fall of this.waterfalls){if(fall.isPoints){const pos=fall.geometry.attributes.position,f=fall.userData.fall;for(let i=0;i<pos.count;i++)pos.setY(i,3+((pos.getY(i)-3-dt*28+f.height)%f.height));pos.needsUpdate=true;}else fall.material.opacity=.4+Math.sin(now*5)*.07;}
+  for(const effect of this.aquaticEffects||[]){if(effect.userData.currentRing){effect.rotation.z=now*.08;effect.material.opacity=.24+Math.sin(now*.7+effect.position.y)*.08;}else if(effect.userData.bubbles){effect.rotation.y+=dt*.08;const pos=effect.geometry.attributes.position;for(let i=0;i<pos.count;i++)pos.setY(i,4+((pos.getY(i)-4+dt*3.5)%134));pos.needsUpdate=true;}}
   const attr=this.particles.geometry.attributes.position;for(let i=0;i<attr.count;i++){attr.setY(i,(attr.getY(i)+dt*(this.water?.9:.14))%(sim.habitat.waterLevel||sim.habitat.height));}attr.needsUpdate=true;
   const active=new Set();for(const f of sim.food){const key=`f${f.id}`;active.add(key);const g=this.effect(key,()=>{const a=new THREE.Group();for(let j=0;j<12;j++){const m=mesh(new THREE.IcosahedronGeometry(.22,0),mat(0xf4b757),Math.sin(j*8)*1.5,Math.cos(j*5)*.5,Math.cos(j*4)*1.5);a.add(m);}return a;});g.position.set(f.x,f.y,f.z);g.rotation.y=now*.4;g.scale.setScalar(Math.min(1,f.ttl));}
   for(const w of sim.waste){const key=`w${w.id}`;active.add(key);const g=this.effect(key,()=>{const g=new THREE.Group();for(let i=0;i<4;i++){const m=mesh(new THREE.SphereGeometry(.65,7,5),mat(0x695638,{transparent:true,opacity:this.water?.35:.9,depthWrite:!this.water}),Math.sin(i*2)*.4,i*.18,Math.cos(i*2)*.4);g.add(m);}return g;});g.position.set(w.x,w.y,w.z);g.scale.setScalar(w.radius);}
