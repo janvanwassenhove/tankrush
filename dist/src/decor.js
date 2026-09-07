@@ -1,12 +1,26 @@
 import * as THREE from 'three';
-import {tankOutline,constrainToTank} from './habitats.js?v=13';
-import {surfaceAt} from './simulation.js?v=13';
+import {tankOutline,constrainToTank} from './habitats.js?v=14';
+import {surfaceAt} from './simulation.js?v=14';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 const up=new THREE.Vector3(0,1,0);
 const material=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.8,...extra});
 function add(parent,geo,mat,p=[0,0,0],s=[1,1,1],name=''){const m=new THREE.Mesh(geo,mat);m.position.set(...p);m.scale.set(...s);m.name=name;m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
 function beam(parent,a,b,r,mat,name=''){const av=new THREE.Vector3(...a),bv=new THREE.Vector3(...b),d=bv.clone().sub(av);const m=add(parent,new THREE.CylinderGeometry(r,r,d.length(),6),mat);m.position.copy(av).add(bv).multiplyScalar(.5);m.quaternion.setFromUnitVectors(up,d.normalize());m.name=name;return m;}
 function slab(parent,size,mat,p,name=''){return add(parent,new THREE.BoxGeometry(...size),mat,p,[1,1,1],name);}
+// Curved leaves use a few triangles rather than flattened spheres; each plant
+// still becomes one mesh after batching, with a darker root and a bright tip.
+function aquaticLeaf(parent,mat,{length,width,angle,bend,base=[0,0,0]}){
+ if(parent.userData.maxLeafBend) bend=Math.min(bend,parent.userData.maxLeafBend);
+ const positions=[],colors=[],indices=[],steps=7;
+ for(let i=0;i<=steps;i++){
+  const t=i/steps,spread=Math.sin(Math.PI*t)**.7*width+.015;
+  const x=Math.sin(angle)*bend*t*t,y=length*t,z=Math.cos(angle)*bend*t*t;
+  for(const side of [-1,1]){positions.push(base[0]+x+Math.cos(angle)*spread*side,base[1]+y,base[2]+z-Math.sin(angle)*spread*side);colors.push(.58+t*.34,.66+t*.34,.48+t*.3);}
+  if(i<steps){const k=i*2;indices.push(k,k+1,k+2,k+1,k+3,k+2);}
+ }
+ const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geo.setIndex(indices);geo.computeVertexNormals();
+ return add(parent,geo,mat,[0,0,0],[1,1,1],'Curved aquatic leaf');
+}
 function furnishRoom(room,h,w,d,rng){
  const themes={
   blackwater:[0x27322f,0xb86e45,0xd5b56b],planted:[0x20352f,0x5aa57d,0xe1c675],rift:[0x303a43,0x4f86ad,0xd8ba72],
@@ -128,7 +142,15 @@ export function buildDecor(scene,sim,rng){
  }
  function plant(x,z,height,style=h.theme){
   const g=new THREE.Group();g.position.set(x,sim.groundAt(x,z),z);g.name=style==='reef'?'Branching coral':'Live plant';scene.add(g);const m=material(style==='reef'?[0xe5a580,0xbb8ada,0x7baab8][Math.floor(rng()*3)]:p.leaf,{side:THREE.DoubleSide});
-  if(style==='desert'||style==='outback'){
+  if(water&&style!=='reef'){
+   const ribbon=style==='rift'||(style==='planted'&&rng()<.4),stem=style==='planted'&&!ribbon&&rng()<.55;
+   g.name=ribbon?'Ribbon grass':stem?'Stem plant thicket':'Sword plant rosette';
+   g.userData.maxLeafBend=Math.max(1,Math.min(w-Math.abs(x),d-Math.abs(z))-6);
+   m.color.setHex(style==='blackwater'?[0x659f43,0x77984e,0x478851][Math.floor(rng()*3)]:style==='rift'?0x6b9351:[0x59ab49,0x7bb950,0x32845e,0xa6794b][Math.floor(rng()*4)]);m.vertexColors=true;
+   height=Math.min(height,h.waterLevel-g.position.y-12);
+   if(stem){for(let i=0;i<4;i++){const angle=i*2.4,len=height*(.7+rng()*.3),base=[Math.sin(angle)*3,0,Math.cos(angle)*3];aquaticLeaf(g,m,{length:len,width:.13,angle,bend:2,base});for(let j=1;j<=6;j++)for(const sign of [-1,1])aquaticLeaf(g,m,{length:len*.075,width:1.25,angle:angle+(sign>0?Math.PI:0)+j*.3,bend:5,base:[base[0],len*j/7,base[2]]});}}
+   else for(let i=0;i<9;i++)aquaticLeaf(g,m,{length:height*(.45+rng()*.55),width:ribbon?.65:2.4,angle:i*2.4,bend:height*(ribbon?.12:.34)});
+  }else if(style==='desert'||style==='outback'){
    for(let i=0;i<7;i++){const a=i*2.4,leaf=add(g,new THREE.ConeGeometry(.9,height,4),m,[Math.sin(a)*2,height*.37,Math.cos(a)*2],[1,1,.4]);leaf.rotation.z=Math.sin(a)*.6;leaf.rotation.x=Math.cos(a)*.6;}
   }else if(style==='reef'){
    for(let i=0;i<5;i++){const a=i*2.4,b=[Math.sin(a)*height*.4,height*(.5+rng()*.5),Math.cos(a)*height*.4];beam(g,[0,0,0],b,.5,m);for(const sign of [-1,1])beam(g,b,[b[0]+sign*2,b[1]+3,b[2]+1],.35,m);}
@@ -138,12 +160,16 @@ export function buildDecor(scene,sim,rng){
     for(let j=1;j<=3;j++){const leaf=add(g,new THREE.SphereGeometry(1,6,4),m,[stem[0]*j/3,stem[1]*j/3,stem[2]*j/3],[style==='ferns'?1.2:2.2,.16,style==='planted'?3.8:5]);leaf.rotation.set(.3,a+j,.35);if(style==='ferns')for(let k=-2;k<=2;k++)beam(g,[stem[0]*j/3,stem[1]*j/3,stem[2]*j/3],[stem[0]*j/3+k,stem[1]*j/3+.3,stem[2]*j/3+3-Math.abs(k)],.12,m);}
    }
   }
-  plants.push({g,phase:rng()*6});
+  if(style==='reef'){
+   // Hard coral stays fixed and batches with the rest of the reef scenery.
+   for(const child of [...g.children]){child.position.add(g.position);scene.add(child);}scene.remove(g);
+  }else plants.push({g,phase:rng()*6});
  }
  for(let i=0;i<h.plants;i++){
   const a=rng()*Math.PI*2,k=i%3===0?.25+rng()*.3:1.28+rng()*.08;
   const pt=constrainToTank(h,Math.cos(a)*h.trackX*k,Math.sin(a)*h.trackZ*k,8);
-  plant(pt.x,pt.z,water?16+rng()*h.height*.34:12+rng()*h.height*.3);
+  const background=pt.z<-d*.45||Math.abs(pt.x)>w*.72;
+  plant(pt.x,pt.z,water?(background?28+h.height*.3+rng()*h.height*.2:12+rng()*h.height*.22):12+rng()*h.height*.3);
  }
  const bark=material(p.wood);
  for(let i=0;i<h.branches;i++){
@@ -154,15 +180,15 @@ export function buildDecor(scene,sim,rng){
  if(h.theme==='blackwater'||h.theme==='ferns')for(let i=0;i<65;i++){const x=(rng()-.5)*w*1.7,z=(rng()-.5)*d*1.7,leaf=add(scene,new THREE.SphereGeometry(1,5,3),material(i%2?0x82603c:0xa47b45),[x,sim.groundAt(x,z)+.1,z],[1.4,.08,3]);leaf.rotation.y=rng()*6;}
  if(h.theme==='reef'){
   for(let i=0;i<38;i++)plant((rng()-.5)*h.trackX*1.7,(rng()-.5)*h.trackZ*1.65,6+rng()*17,'reef');
-  for(let i=0;i<5;i++){const x=(i-2)*21,z=i%2?18:-18;for(let j=0;j<16;j++){const a=j*2.4,r=2+rng()*4;beam(scene,[x+Math.cos(a)*r,sim.groundAt(x,z),z+Math.sin(a)*r],[x+Math.cos(a)*r,5+rng()*5,z+Math.sin(a)*r],.35,material(i%2?0xbce6aa:0xf3b6cf),'Anemone tentacle');}}
+  for(let i=0;i<5;i++){const x=(i-2)*21,z=i%2?18:-18,g=new THREE.Group();g.name='Soft anemone';g.position.set(x,sim.groundAt(x,z),z);scene.add(g);const m=material(i%2?0xbce6aa:0xf3b6cf);for(let j=0;j<16;j++){const a=j*2.4,r=2+rng()*4;beam(g,[Math.cos(a)*r,0,Math.sin(a)*r],[Math.cos(a)*(r+1),5+rng()*5,Math.sin(a)*(r+1)],.35,m,'Anemone tentacle');}plants.push({g,phase:rng()*6});}
   const coralColors=[0xff8c73,0xf6c85f,0x9d7bea,0x48b9b2,0xeaa1c4];
-  for(let i=0;i<18;i++){const x=(rng()-.5)*w*1.65,z=(rng()-.5)*d*1.55,y=sim.groundAt(x,z),c=material(coralColors[i%coralColors.length]);add(scene,new THREE.CylinderGeometry(1.4+rng(),2+rng(),5+rng()*9,9),c,[x,y+4,z],[1,1,1],'Reef sponge');if(i%3===0)add(scene,new THREE.TorusGeometry(3+rng()*2,.5,6,16),c,[x,y+8,z],[1,1,1],'Table coral').rotation.x=Math.PI/2;}
+  for(let i=0;i<18;i++){const x=(rng()-.5)*w*1.65,z=(rng()-.5)*d*1.55,y=sim.groundAt(x,z),c=material(coralColors[i%coralColors.length]),height=5+rng()*9,radius=1.4+rng();add(scene,new THREE.CylinderGeometry(radius,2+rng(),height,9,1,true),c,[x,y+height/2,z],[1,1,1],'Tube sponge');add(scene,new THREE.CylinderGeometry(radius*.72,radius*.72,.15,9),material(0x473553),[x,y+height-.8,z],[1,1,1],'Sponge opening');if(i%3===0){beam(scene,[x+6,y,z],[x+6,y+8,z],.65,c,'Plate coral stalk');for(let tier=0;tier<3;tier++)add(scene,new THREE.CylinderGeometry(5-tier*.8,4.3-tier*.8,.7,14),c,[x+6,y+6+tier*2,z],[1,1,.8],'Plate coral');}}
   for(const sign of [-1,1]){const x=sign*47,z=sign*-22,y=sim.groundAt(x,z);beam(scene,[x-11,y,z],[x,y+15,z],5,rockMat,'Reef arch');beam(scene,[x,y+15,z],[x+12,y,z],5,rockMat,'Reef arch');}
  }
  if(h.theme==='blackwater'){
   // Flooded-bank roots spread into the open water and frame the race line.
   for(const sign of [-1,1])for(let i=0;i<7;i++){const x=sign*(w-10),z=-d+10+i*d*.27,y=sim.groundAt(x,z);beam(scene,[x,y+32,z],[x-sign*(18+rng()*20),y+4,z+(rng()-.5)*17],1.2+rng()*1.3,bark,'Flooded root');}
-  for(let i=0;i<20;i++){const x=(rng()-.5)*w*1.7,z=(rng()-.5)*d*1.55,y=sim.groundAt(x,z);add(scene,new THREE.CircleGeometry(2+rng()*3,9),material(i%2?0x6c8d3e:0x4f7435,{side:THREE.DoubleSide}),[x,y+.25,z],[1,.55,1],'Amazon sword rosette').rotation.x=-Math.PI/2;}
+  for(let i=0;i<16;i++)plant((rng()-.5)*w*1.7,(rng()-.5)*d*1.55,6+rng()*10,'blackwater');
  }
  if(h.theme==='planted'){
   // Low foreground carpet and layered moss stones make the planted cube feel full at every height.
@@ -176,9 +202,11 @@ export function buildDecor(scene,sim,rng){
   for(const x of [-76,0,76]){const z=d*.42,y=sim.groundAt(x,z);add(scene,new THREE.BoxGeometry(18,4,13),rockMat,[x,y+13,z],[1,1,1],'Cichlid cave roof');for(const sign of [-1,1])add(scene,rockGeo,rockMat,[x+sign*8,y+6,z],[5,8,6],'Cichlid cave pillar');}
  }
  if(h.theme==='jelly'){
-  const glow=material(p.accent,{emissive:p.accent,emissiveIntensity:1.1,transparent:true,opacity:.32,depthWrite:false});
-  for(const y of [28,65,102]){const ring=add(scene,new THREE.TorusGeometry(w*.68,.35,6,64),glow,[0,y,0],[1,1,d/w],'Kreisel current ring');ring.rotation.x=Math.PI/2;ring.userData.currentRing=true;aquaticEffects.push(ring);}
-  for(let column=0;column<4;column++){const coords=[],a=column*Math.PI/2;for(let i=0;i<34;i++){const r=42+Math.sin(i*.7)*5;coords.push(Math.cos(a+i*.08)*r,4+i*3.9,Math.sin(a+i*.08)*r);}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(coords,3));const bubbles=new THREE.Points(g,new THREE.PointsMaterial({color:0xd7ecff,size:.75,transparent:true,opacity:.6,depthWrite:false}));bubbles.userData.bubbles=true;scene.add(bubbles);aquaticEffects.push(bubbles);}
+  // Keep the water column unobstructed; the housing lights and fine suspended
+  // particles reveal circulation without adding floating hoops or air stones.
+  for(const y of [7,top-7]){const glow=material(p.accent,{emissive:p.accent,emissiveIntensity:1.1,transparent:true,opacity:.32,depthWrite:false});const ring=add(shell,new THREE.TorusGeometry(w-2,.55,6,64),glow,[0,y,0],[1,1,d/w],'Kreisel rim light');ring.rotation.x=Math.PI/2;ring.castShadow=false;ring.userData.currentRing=true;aquaticEffects.push(ring);}
+  const coords=[];for(let i=0;i<136;i++){const a=rng()*Math.PI*2,r=w*(.12+Math.sqrt(rng())*.72);coords.push(Math.cos(a)*r,8+rng()*(h.waterLevel-16),Math.sin(a)*r*d/w);}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(coords,3));const flow=new THREE.Points(g,new THREE.PointsMaterial({color:0xd7ecff,size:.3,transparent:true,opacity:.4,depthWrite:false}));flow.name='Suspended current particles';flow.userData.currentParticles=true;scene.add(flow);aquaticEffects.push(flow);
  }
  if(h.waterfall){const f=h.waterfall;
   for(let i=0;i<6;i++)add(scene,rockGeo,rockMat,[f.x-3,6+i*12,f.z-8],[10-i*.6,10,7],'Waterfall rock wall');

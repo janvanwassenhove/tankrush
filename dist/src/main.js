@@ -1,7 +1,7 @@
-import {HABITATS,getHabitat,SPECIES} from './habitats.js?v=13';
-import {Simulation,pathPoint} from './simulation.js?v=13';
-import {bindJoystick} from './input.js?v=13';
-import {t,setLanguage,getLanguage,localizedHabitat} from './i18n.js?v=13';
+import {HABITATS,getHabitat,SPECIES} from './habitats.js?v=14';
+import {Simulation,pathPoint} from './simulation.js?v=14';
+import {bindJoystick} from './input.js?v=14';
+import {t,setLanguage,getLanguage,localizedHabitat} from './i18n.js?v=14';
 const $=s=>document.querySelector(s);
 const joystick=bindJoystick($('#joystick'));
 const DEFAULT_KEYS={forward:'KeyW',back:'KeyS',left:'KeyA',right:'KeyD',rise:'KeyQ',dive:'KeyE',boost:'ShiftLeft',food:'Space',recover:'KeyR'};
@@ -18,7 +18,7 @@ const paint=()=>new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolv
 let viewPromise,previewTicket=0,previewPending=false;
 async function ensureView(){
  if(view)return;
- if(!viewPromise)viewPromise=import('./scene.js?v=13').then(({RaceScene})=>{view=new RaceScene($('#game'));view.setQuality($('#quality').value);}).catch(e=>{viewPromise=null;throw e;});
+ if(!viewPromise)viewPromise=import('./scene.js?v=14').then(({RaceScene})=>{view=new RaceScene($('#game'));view.setQuality($('#quality').value);}).catch(e=>{viewPromise=null;throw e;});
  await viewPromise;
 }
 function runFrames(){if(!frameStarted&&!document.hidden){frameStarted=true;last=0;requestAnimationFrame(frame);}}

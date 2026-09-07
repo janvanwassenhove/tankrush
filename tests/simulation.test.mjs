@@ -44,6 +44,31 @@ test('recovery before the first gate returns to the starting approach',()=>{
   assert.ok(distance(r,s.gatePoint(0))<15);assert.equal(r.gate,0);assert.equal(r.steering,0);
 });
 test('aquarium course occupies the water column, terrarium follows terrain',()=>{const ys=[];for(let i=0;i<12;i++){const a=pathPoint('aquarium',i/12);ys.push(a.y);const t=pathPoint('terrarium',i/12);assert.equal(t.y,terrainHeight(t.x,t.z)+1.3);}assert.ok(Math.max(...ys)-Math.min(...ys)>10);});
+test('aquarium residents fill the water column and stay above sloping substrate',()=>{
+ for(const h of HABITATS.filter(h=>h.kind==='aquarium')){
+  const s=new Simulation(h.id),heights=s.animals.map(a=>a.y);
+  assert.ok(Math.max(...heights)-Math.min(...heights)>h.waterLevel*.35,h.id);
+  for(let i=0;i<900;i++){
+   s.step(1/60);
+   for(const a of s.animals){
+    assert.ok(a.y>s.groundAt(a.x,a.z),`${h.id}: ${a.speciesId} inside substrate`);
+    assert.ok(a.y<s.config.top,`${h.id}: resident above water`);
+    assert.deepEqual(constrainToTank(h,a.x,a.z,4),{x:a.x,z:a.z});
+    if(a.type==='shrimp')assert.ok(Math.abs(a.y-s.groundAt(a.x,a.z)-.85)<1e-8);
+   }
+  }
+ }
+});
+test('tetra and rasbora shoals stay together as they move',()=>{
+ for(const id of ['amazon','asia']){
+  const s=new Simulation(id),schools=new Map();
+  for(const a of s.animals)if(a.shoal!==null){if(!schools.has(a.shoal))schools.set(a.shoal,[]);schools.get(a.shoal).push(a);}
+  const start={...schools.get(0)[0]};
+  for(let i=0;i<900;i++)s.step(1/60);
+  assert.ok(distance(start,schools.get(0)[0])>3);
+  for(const school of schools.values())for(const a of school)assert.ok(distance(a,school[0])<12);
+ }
+});
 test('countdown prevents driving; pause freezes simulation',()=>{const s=new Simulation();s.start();const x=s.racers[0].x;s.step(.02,{throttle:1});assert.equal(x,s.racers[0].x);s.phase='paused';const t=s.time;s.step(.02,{throttle:1});assert.equal(s.time,t);});
 test('vertical input changes submarine depth but has no effect on a buggy',()=>{for(const mode of ['aquarium','terrarium']){const s=new Simulation(mode),baseline=new Simulation(mode);start(s);start(baseline);for(let i=0;i<100;i++){s.step(1/60,{vertical:1});baseline.step(1/60,{});}if(mode==='aquarium')assert.ok(s.racers[0].y>baseline.racers[0].y+5);else assert.deepEqual(s.racers,baseline.racers);}});
 test('boost consumes charge, regenerates and resets cleanly',()=>{const s=new Simulation();start(s);const r=s.racers[0];for(let i=0;i<60;i++)s.move(r,1/60,{throttle:1,boost:true});assert.ok(r.boost<80);for(let i=0;i<120;i++)s.move(r,1/60,{});assert.ok(r.boost>85);s.resetRacer();assert.equal(r.speed,0);assert.equal(r.passed,0);});

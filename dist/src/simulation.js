@@ -1,4 +1,4 @@
-import {getHabitat,SPECIES,constrainToTank} from './habitats.js?v=13';
+import {getHabitat,SPECIES,constrainToTank} from './habitats.js?v=14';
 // Pure deterministic simulation: no DOM or rendering dependencies.
 export const TAU = Math.PI * 2;
 export const HABITAT = {halfWidth:108,halfDepth:78,trackX:82,trackZ:58,roadHalfWidth:7};
@@ -55,13 +55,33 @@ export class Simulation {
  constructor(mode='aquarium',seed=43){this.habitat=getHabitat(mode);this.mode=this.habitat.kind;this.config={...WORLD[this.mode],title:this.habitat.name,top:(this.habitat.waterLevel||this.habitat.height)-5};this.gateParameters=gateParameters(this.habitat);this.config.gates=this.gateParameters.length;this.rocks=[];const scenery=random(this.habitat.seed+5);for(let i=0;i<Math.ceil(this.habitat.rocks/3);i++){const a=scenery()*TAU,k=.25+scenery()*.35;this.rocks.push([Math.cos(a)*this.habitat.trackX*k,Math.sin(a)*this.habitat.trackZ*k,3+scenery()*6]);}this.rng=random(seed);this.time=0;this.elapsed=0;this.phase='menu';this.countdown=3;this.events=[];this.food=[];this.waste=[];this.tongues=[];this.racers=[];this.animals=[];this.totalLaps=3;this.nextId=0;this.createRacers();this.createAnimals();}
  createRacers(){for(let i=0;i<4;i++){const t=-.026-Math.floor(i/2)*.012,p=pathPoint(this.habitat,t),h=pathHeading(this.habitat,t),side=i%2?1.6:-1.6;p.x+=Math.cos(h)*side;p.z-=Math.sin(h)*side;if(!this.config.water)p.y=this.groundAt(p.x,p.z)+1.3;this.racers.push({id:i,name:['Jij','Gilly','Pebble','Moss'][i],...p,previous:{...p},vx:0,vy:0,vz:0,yaw:h,pitch:0,roll:0,steering:0,speed:0,gate:0,passed:0,lap:1,food:3,boost:100,boosting:false,slow:0,immune:0,foodCooldown:0,finished:false,finishTime:null,grounded:true,surface:'soil'});}}
  groundAt(x,z){return terrainHeight(x,z,this.habitat);}
- createAnimals(){const count=this.habitat.animalCount||(this.config.water?16:8);for(let i=0;i<count;i++){
+ createAnimals(){const count=this.habitat.animalCount||(this.config.water?16:8),speciesCounts=new Map();for(let i=0;i<count;i++){
   const speciesId=this.habitat.roster[i%this.habitat.roster.length],profile=SPECIES[speciesId],t=(i+.45)/count,p=pathPoint(this.habitat,t),h=pathHeading(this.habitat,t);
   p.x-=Math.cos(h)*(3+i%3);p.z+=Math.sin(h)*(3+i%3);
+  let shoal=null,phase=i*1.8;
+  if(this.config.water){
+   const ordinal=speciesCounts.get(speciesId)||0;speciesCounts.set(speciesId,ordinal+1);
+   if(['cardinal','rasbora'].includes(speciesId)){
+    const group=Math.floor(ordinal/4),slot=ordinal%4,angle=.8+group*2.4;
+    shoal=group;phase=group*2.4+slot*.1;
+    p.x=Math.cos(angle)*this.habitat.halfWidth*.53+(slot%2)*4;
+    p.z=Math.sin(angle)*this.habitat.halfDepth*.5+Math.floor(slot/2)*4;
+    p.y=this.habitat.waterLevel*(.34+group*.19)+(slot%2)*2;
+   }else if(profile.behavior==='jelly'){
+    const angle=i*2.39996,radius=this.habitat.halfWidth*(.2+.5*((i%5)/4));
+    p.x=Math.cos(angle)*radius;p.z=Math.sin(angle)*radius;p.y=14+(this.habitat.waterLevel-28)*(i+.5)/count;
+   }else if(i%4!==0){
+    const angle=i*2.39996,spread=.28+(i%5)*.13;
+    p.x=Math.cos(angle)*this.habitat.halfWidth*spread;p.z=Math.sin(angle)*this.habitat.halfDepth*spread;
+    p.y=this.habitat.waterLevel*(.24+(ordinal%4)*.17);
+   }
+   const bounded=constrainToTank(this.habitat,p.x,p.z,10);p.x=bounded.x;p.z=bounded.z;
+   p.y=profile.model==='shrimp'?this.groundAt(p.x,p.z)+.85:clamp(p.y,this.groundAt(p.x,p.z)+profile.radius+1,this.config.top-3);
+  }
   if(!this.config.water&&profile.behavior==='walk'&&this.habitat.relief?.length&&i%2===0){const hill=this.habitat.relief[i%this.habitat.relief.length];p.x=hill.x+3;p.z=hill.z+2;}
   if(profile.behavior==='hop'&&this.habitat.pools?.length){const pool=this.habitat.pools[i%this.habitat.pools.length];p.x=pool.x+pool.rx*.85;p.z=pool.z;}
   if(!this.config.water)p.y=this.groundAt(p.x,p.z)+(profile.behavior==='climb'?7+(i%3)*3:.8);
-  this.animals.push({id:i,speciesId,profile,type:profile.model,...p,home:{...p},yaw:0,target:null,phase:i*1.8,radius:profile.radius,dropAt:7+i*2.7,tongueAt:5,body:[]});
+  this.animals.push({id:i,speciesId,profile,type:profile.model,...p,home:{...p},yaw:0,target:null,phase,shoal,radius:profile.radius,dropAt:7+i*2.7,tongueAt:5,body:[]});
  }}
  start(){this.phase='countdown';this.countdown=3;}
  emit(text,type='info'){this.events.push({text,type,time:this.time});if(this.events.length>10)this.events.shift();}
@@ -109,8 +129,10 @@ export class Simulation {
  checkGate(r){const p=this.gatePoint(r.gate);if(segmentDistance(p,r.previous,r)>this.config.radius)return;const heading=pathHeading(this.habitat,this.gateParameter(r.gate)),dx=r.x-r.previous.x,dz=r.z-r.previous.z;if(dx*Math.sin(heading)+dz*Math.cos(heading)<=0)return;r.gate=(r.gate+1)%this.config.gates;r.passed++;if(r.passed>1&&(r.passed-1)%this.config.gates===0){r.lap++;r.food=Math.min(5,r.food+2);if(r.lap>this.totalLaps){r.finished=true;r.finishTime=this.elapsed;if(r.id===0)this.emit('FINISH!');}else if(!r.id)this.emit(`Ronde ${r.lap} / ${this.totalLaps} · +2 porties voer`,'lap');}else if(!r.id&&r.passed%3===0)this.emit(`Checkpoint ${r.gate+1} · hou koers!`);}
  updateFood(dt){for(const f of this.food){f.ttl-=dt;if(this.config.water){const c=currentAt(f,this.time,this.habitat);f.x+=c.x*dt*.4;f.z+=c.z*dt*.4;f.y-=dt*.23;}}this.food=this.food.filter(f=>f.ttl>0);}
  updateAnimals(dt){for(const a of this.animals){let nearest=null,nd=22;for(const f of this.food){const d=distance(a,f);if(d<nd){nearest=f;nd=d;}}a.target=nearest?.id??null;const speed=nearest?a.profile.speed:a.profile.behavior==='jelly'?1.4:2.2;
-   const target=nearest||{x:a.home.x+Math.cos(this.time*.24+a.phase)*6,y:a.home.y+Math.sin(this.time*.45+a.phase)*2,z:a.home.z+Math.sin(this.time*.31+a.phase)*5};
-   const dx=target.x-a.x,dy=target.y-a.y,dz=target.z-a.z,d=Math.hypot(dx,dy,dz)||1;a.yaw+=wrap(Math.atan2(dx,dz)-a.yaw)*Math.min(1,dt*3);const step=Math.min(d,speed*dt);a.x+=dx/d*step;a.z+=dz/d*step;const boundary=constrainToTank(this.habitat,a.x,a.z,4);a.x=boundary.x;a.z=boundary.z;if(this.config.water)a.y=clamp(a.y+dy/d*step,4,this.config.top-2);else if(a.profile.behavior==='climb')a.y=Math.max(this.groundAt(a.x,a.z)+.75,a.y+dy/d*step);else a.y=this.groundAt(a.x,a.z)+.75+(a.profile.behavior==='hop'?Math.abs(Math.sin(this.time*3+a.phase))*1.5:0);
+   let target=nearest||{x:a.home.x+Math.cos(this.time*.24+a.phase)*(a.shoal!==null?12:6),y:a.home.y+Math.sin(this.time*.45+a.phase)*2,z:a.home.z+Math.sin(this.time*(a.shoal!==null?.24:.31)+a.phase)*(a.shoal!==null?9:5)};
+   if(!nearest&&a.profile.behavior==='jelly'){const angle=this.time*.035,c=Math.cos(angle),s=Math.sin(angle);target={x:a.home.x*c-a.home.z*s,z:a.home.x*s+a.home.z*c,y:a.home.y+Math.sin(this.time*.25+a.phase)*7};}
+   if(this.config.water&&a.type==='shrimp')target={...target,y:this.groundAt(target.x,target.z)+.85};
+   const dx=target.x-a.x,dy=target.y-a.y,dz=target.z-a.z,d=Math.hypot(dx,dy,dz)||1;a.yaw+=wrap(Math.atan2(dx,dz)-a.yaw)*Math.min(1,dt*3);const step=Math.min(d,speed*dt);a.x+=dx/d*step;a.z+=dz/d*step;const boundary=constrainToTank(this.habitat,a.x,a.z,4);a.x=boundary.x;a.z=boundary.z;if(this.config.water)a.y=a.type==='shrimp'?this.groundAt(a.x,a.z)+.85:clamp(a.y+dy/d*step,this.groundAt(a.x,a.z)+a.radius+1,this.config.top-2);else if(a.profile.behavior==='climb')a.y=Math.max(this.groundAt(a.x,a.z)+.75,a.y+dy/d*step);else a.y=this.groundAt(a.x,a.z)+.75+(a.profile.behavior==='hop'?Math.abs(Math.sin(this.time*3+a.phase))*1.5:0);
    if(this.phase==='racing'&&this.time>a.dropAt){a.dropAt=this.time+15+this.rng()*9;this.waste.push({id:++this.nextId,x:a.x,y:a.y,z:a.z,ttl:11,radius:this.config.water?1.8:1.3});}
    if(a.type==='chameleon'&&this.phase==='racing'&&this.time>a.tongueAt){a.tongueAt=this.time+5;const prey=this.racers.filter(r=>!r.finished).sort((r,s)=>distance(a,r)-distance(a,s))[0];if(prey&&distance(a,prey)<17)this.tongues.push({id:++this.nextId,from:{x:a.x,y:a.y+.7,z:a.z},to:{x:prey.x,y:prey.y,z:prey.z},ttl:1.4,age:0,hit:new Set()});}
   }
